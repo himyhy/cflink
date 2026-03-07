@@ -119,8 +119,11 @@ export function renderTextPage(content, key, title) {
       startup: { typeset: false }
     };
 
+    let __mathRendered = false;
+
     async function renderMath() {
-      if (!window.MathJax || !window.MathJax.tex2svgPromise) return;
+      if (__mathRendered) return;
+      if (!window.MathJax || !window.MathJax.tex2svgPromise) return false;
       const nodes = document.querySelectorAll('[data-expr]');
       for (const node of nodes) {
         const expr = decodeURIComponent(node.getAttribute('data-expr') || '');
@@ -132,6 +135,15 @@ export function renderTextPage(content, key, title) {
         } catch (e) {
           node.textContent = expr;
         }
+      }
+      __mathRendered = true;
+      return true;
+    }
+
+    async function waitAndRenderMath() {
+      for (let i = 0; i < 80; i++) {
+        if (await renderMath()) return;
+        await new Promise(resolve => setTimeout(resolve, 150));
       }
     }
 
@@ -166,8 +178,12 @@ export function renderTextPage(content, key, title) {
     }
 
     window.addEventListener('load', () => {
-      renderMath();
+      waitAndRenderMath();
     });
+
+    if (document.readyState === 'complete') {
+      waitAndRenderMath();
+    }
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </body>

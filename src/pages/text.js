@@ -119,10 +119,17 @@ export function renderTextPage(content, key, title) {
       startup: { typeset: false }
     };
 
+    const MATHJAX_SOURCES = [
+      'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js',
+      'https://unpkg.com/mathjax@3/es5/tex-svg.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js'
+    ];
+
     let __mathRendered = false;
+    let __mathLoadPromise = null;
 
     async function renderMath() {
-      if (__mathRendered) return;
+      if (__mathRendered) return true;
       if (!window.MathJax || !window.MathJax.tex2svgPromise) return false;
       const nodes = document.querySelectorAll('[data-expr]');
       for (const node of nodes) {
@@ -140,11 +147,40 @@ export function renderTextPage(content, key, title) {
       return true;
     }
 
-    async function waitAndRenderMath() {
-      for (let i = 0; i < 80; i++) {
-        if (await renderMath()) return;
-        await new Promise(resolve => setTimeout(resolve, 150));
-      }
+    async function loadMathJax() {
+      if (window.MathJax && window.MathJax.tex2svgPromise) return true;
+      if (__mathLoadPromise) return __mathLoadPromise;
+
+      __mathLoadPromise = (async () => {
+        for (const src of MATHJAX_SOURCES) {
+          const ok = await new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = true;
+            script.onload = () => resolve(true);
+            script.onerror = () => {
+              script.remove();
+              resolve(false);
+            };
+            document.head.appendChild(script);
+          });
+          if (!ok) continue;
+
+          for (let i = 0; i < 100; i++) {
+            if (window.MathJax && window.MathJax.tex2svgPromise) return true;
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
+        return false;
+      })();
+
+      return __mathLoadPromise;
+    }
+
+    async function ensureMathRendered() {
+      const loaded = await loadMathJax();
+      if (!loaded) return false;
+      return renderMath();
     }
 
     async function copyCode(btn) {
@@ -178,14 +214,13 @@ export function renderTextPage(content, key, title) {
     }
 
     window.addEventListener('load', () => {
-      waitAndRenderMath();
+      ensureMathRendered();
     });
 
-    if (document.readyState === 'complete') {
-      waitAndRenderMath();
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      ensureMathRendered();
     }
   </script>
-  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </body>
 </html>`;
 }

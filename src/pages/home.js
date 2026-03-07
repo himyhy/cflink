@@ -4,6 +4,7 @@ export const htmlIndex = `<!DOCTYPE html>
   <meta charset="UTF-8">
   <title>CFLink</title>
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <style>
     :root {
       color-scheme: light dark;

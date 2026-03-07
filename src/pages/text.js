@@ -19,6 +19,7 @@ export function renderTextPage(content, key, title) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <title>${safeTitle || (safeKey ? safeKey + " - 文本页" : "文本页")}</title>
   <style>
     :root {

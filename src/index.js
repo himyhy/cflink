@@ -16,7 +16,7 @@ marked.use(markedHighlight({
 
 function renderMathInHtml(input) {
   let output = String(input || '');
-  output = output.replace(/\\\((.+?)\\\)/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: false }));
+  output = output.replace(/\\\((.+?)\\\)/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: false, output: "html" }));
   return output;
 }
 
@@ -50,7 +50,7 @@ function replaceBlockMathWithPlaceholders(text) {
 
   function pushBlock(expr) {
     const id = blocks.length;
-    blocks.push(katex.renderToString(String(expr || '').trim(), { throwOnError: false, displayMode: true }));
+    blocks.push(katex.renderToString(String(expr || '').trim(), { throwOnError: false, displayMode: true, output: "html" }));
     return '\n\n@@BLOCK_MATH_' + id + '@@\n\n';
   }
 

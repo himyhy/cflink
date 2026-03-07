@@ -1,10 +1,12 @@
 import { marked } from "marked";
 import { markedHighlight } from "marked-highlight";
+import markedFootnote from "marked-footnote";
 import hljs from "highlight.js";
 import katex from "katex";
 // ==================== 基础配置 ====================
 // 后台密码优先使用环境变量 ADMIN_PASS；若未配置则回退到默认占位值
 const DEFAULT_ADMIN_PASS = "change-this-password";
+marked.use(markedFootnote());
 marked.use(markedHighlight({
   emptyLangClass: 'hljs',
   langPrefix: 'hljs language-',
@@ -16,8 +18,9 @@ marked.use(markedHighlight({
 
 function renderMathInHtml(input) {
   let output = String(input || '');
+  output = output.replace(/<p>\s*\$\$([\s\S]+?)\$\$\s*<\/p>/g, (_, expr) => katex.renderToString(expr.replace(/<br\s*\/?>(\s*)/gi, '\n').trim(), { throwOnError: false, displayMode: true }));
   output = output.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: true }));
-  output = output.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: true }));
+  output = output.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => katex.renderToString(String(expr || '').replace(/<br\s*\/?>(\s*)/gi, '\n').trim(), { throwOnError: false, displayMode: true }));
   output = output.replace(/\\\((.+?)\\\)/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: false }));
   return output;
 }
@@ -146,6 +149,9 @@ function renderTextPage(content, key, title) {
     .content .task-list { list-style: none; margin-left: 0; }
     .content .task-item { display:flex; align-items:flex-start; gap:10px; }
     .content .task-item input { margin-top: 4px; }
+    .content .footnotes { margin-top: 24px; padding-top: 14px; border-top: 1px solid rgba(148,163,184,0.35); color: var(--sub); font-size: 14px; }
+    .content .footnotes ol { margin-top: 10px; }
+    .content .footnote-backref { text-decoration: none; margin-left: 6px; }
     .content a { color: #2563eb; }
   </style>
 </head>

@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "shortlink",
+  "name": "cflink",
   "main": "./src/index.js",
   "compatibility_date": "2026-03-07",
   "workers_dev": true,
@@ -19,6 +19,6 @@
     "ADMIN_PATH": "/admin",
     "ADMIN_PASS": "change-this-password",
     "LONG_DOMAIN_BLACKLIST": "",
-    "SUFFIX_BLACKLIST": ""
+    "SUFFIX_BLACKLIST": "admin,login,api"
   }
 }

@@ -3,6 +3,7 @@ import { renderFilePage } from "./pages/file.js";
 import { renderRichMarkdown, renderMathInHtml, extractMathPlaceholders, restoreMathPlaceholders, extractFootnotes, sanitizeRenderedHtml, enhanceRenderedHtml, renderFootnotesSection } from "./renderers/markdown.js";
 import { htmlLogin, htmlAdmin } from "./pages/admin.js";
 import { htmlIndex } from "./pages/home.js";
+import { renderErrorPage } from "./pages/error.js";
 import { marked } from "marked";
 import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
@@ -582,7 +583,15 @@ async function handleRequest(request) {
 
   // 访问黑名单后缀：统一跳转 403 页面
   if (isSuffixBlocked(path, suffixBlacklist)) {
-    return Response.redirect("https://403.lily.lat/" + url.search, 302);
+    return new Response(renderErrorPage({
+      status: 403,
+      title: '访问受限',
+      description: '这个链接当前不可访问，可能已被限制或保留。',
+      primaryHref: '/',
+      primaryText: '返回首页',
+      secondaryHref: 'javascript:history.back()',
+      secondaryText: '返回上一页'
+    }), { status: 403, headers: htmlHeaders });
   }
 
   const fileMatch = pathname.match(/^\/([^/]+)\/(raw|download)$/);
@@ -594,7 +603,15 @@ async function handleRequest(request) {
     if (parsed?.type === 'file' && parsed.objectKey) {
       const obj = await FILES.get(parsed.objectKey);
       if (!obj) {
-        return Response.redirect("https://404.lily.lat/" + url.search, 302);
+        return new Response(renderErrorPage({
+          status: 404,
+          title: '文件不存在',
+          description: '这个文件链接已经失效，或者对应文件已不存在。',
+          primaryHref: '/',
+          primaryText: '返回首页',
+          secondaryHref: adminBase,
+          secondaryText: '进入后台'
+        }), { status: 404, headers: htmlHeaders });
       }
       const headers = new Headers();
       obj.writeHttpMetadata(headers);
@@ -619,7 +636,15 @@ async function handleRequest(request) {
   }
 
   // 未创建的后缀：跳转到统一 404 页面
-  return Response.redirect("https://404.lily.lat/" + url.search, 302);
+  return new Response(renderErrorPage({
+    status: 404,
+    title: '内容不存在',
+    description: '这个链接不存在，或对应内容已经失效。你可以返回首页重新创建分享。',
+    primaryHref: '/',
+    primaryText: '返回首页',
+    secondaryHref: '/',
+    secondaryText: '创建新分享'
+  }), { status: 404, headers: htmlHeaders });
 }
 
 addEventListener("fetch", (e) => e.respondWith(handleRequest(e.request)));

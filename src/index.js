@@ -67,9 +67,17 @@ function renderTextPage(content, key, title) {
     .content { line-height: 1.75; font-size: 16px; word-break: break-word; white-space: normal; }
     .content h1,.content h2,.content h3 { margin: 18px 0 8px; line-height:1.35; }
     .content p { margin: 0 0 12px; }
-    .content ul { margin: 0 0 12px 20px; padding: 0; }
+    .content ul,.content ol { margin: 0 0 12px 20px; padding: 0; }
     .content li { margin: 0 0 8px; }
     .content code { padding: 2px 6px; border-radius: 8px; background: rgba(148,163,184,0.18); font-family: ui-monospace, SFMono-Regular, monospace; font-size: .92em; }
+    .content pre { margin: 0 0 14px; padding: 14px; overflow:auto; border-radius: 14px; background: rgba(15,23,42,0.9); color: #e5e7eb; }
+    .content pre code { padding: 0; background: transparent; color: inherit; }
+    .content blockquote { margin: 0 0 14px; padding: 2px 0 2px 14px; border-left: 4px solid rgba(37,99,235,0.4); color: var(--sub); }
+    .content hr { border: none; border-top: 1px solid rgba(148,163,184,0.35); margin: 18px 0; }
+    .content .md-space { height: 8px; }
+    .content .task-list { list-style: none; margin-left: 0; }
+    .content .task-item { display:flex; align-items:flex-start; gap:10px; }
+    .content .task-item input { margin-top: 4px; }
     .content a { color: #2563eb; }
   </style>
 </head>
@@ -202,54 +210,148 @@ function renderInlineMarkdown(text) {
 function renderBasicMarkdown(text) {
   const lines = String(text || "").split(/\r?\n/);
   const html = [];
-  let inList = false;
+  let inUl = false;
+  let inOl = false;
+  let inCode = false;
+  let codeLines = [];
+  let inBlockquote = false;
 
-  function closeList() {
-    if (inList) {
+  function closeLists() {
+    if (inUl) {
       html.push("</ul>");
-      inList = false;
+      inUl = false;
+    }
+    if (inOl) {
+      html.push("</ol>");
+      inOl = false;
+    }
+  }
+
+  function closeCode() {
+    if (inCode) {
+      html.push('<pre><code>' + codeLines.join("\n") + '</code></pre>');
+      inCode = false;
+      codeLines = [];
+    }
+  }
+
+  function closeQuote() {
+    if (inBlockquote) {
+      html.push('</blockquote>');
+      inBlockquote = false;
     }
   }
 
   for (const rawLine of lines) {
-    const line = escapeHtmlServer(rawLine);
     const trimmed = rawLine.trim();
+    const escaped = escapeHtmlServer(rawLine);
 
-    if (!trimmed) {
-      closeList();
-      html.push('<div style="height:10px"></div>');
+    if (/^```/.test(trimmed)) {
+      closeLists();
+      closeQuote();
+      if (inCode) {
+        closeCode();
+      } else {
+        inCode = true;
+      }
       continue;
     }
 
+    if (inCode) {
+      codeLines.push(escaped);
+      continue;
+    }
+
+    if (!trimmed) {
+      closeLists();
+      closeQuote();
+      html.push('<div class="md-space"></div>');
+      continue;
+    }
+
+    if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
+      closeLists();
+      closeQuote();
+      html.push('<hr>');
+      continue;
+    }
+
+    if (/^>\s?/.test(trimmed)) {
+      closeLists();
+      if (!inBlockquote) {
+        html.push('<blockquote>');
+        inBlockquote = true;
+      }
+      html.push('<p>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^>\s?/, ""))) + '</p>');
+      continue;
+    }
+
+    closeQuote();
+
     if (/^###\s+/.test(trimmed)) {
-      closeList();
+      closeLists();
       html.push('<h3>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^###\s+/, ""))) + '</h3>');
       continue;
     }
     if (/^##\s+/.test(trimmed)) {
-      closeList();
+      closeLists();
       html.push('<h2>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^##\s+/, ""))) + '</h2>');
       continue;
     }
     if (/^#\s+/.test(trimmed)) {
-      closeList();
+      closeLists();
       html.push('<h1>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^#\s+/, ""))) + '</h1>');
       continue;
     }
+
+    if (/^\d+\.\s+/.test(trimmed)) {
+      if (inUl) {
+        html.push('</ul>');
+        inUl = false;
+      }
+      if (!inOl) {
+        html.push('<ol>');
+        inOl = true;
+      }
+      html.push('<li>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^\d+\.\s+/, ""))) + '</li>');
+      continue;
+    }
+
+    if (/^-\s+\[[ xX]\]\s+/.test(trimmed)) {
+      if (inOl) {
+        html.push('</ol>');
+        inOl = false;
+      }
+      if (!inUl) {
+        html.push('<ul class="task-list">');
+        inUl = true;
+      }
+      const checked = /^-\s+\[[xX]\]\s+/.test(trimmed);
+      const itemText = trimmed.replace(/^-\s+\[[ xX]\]\s+/, "");
+      html.push('<li class="task-item"><input type="checkbox" disabled ' + (checked ? 'checked' : '') + '><span>' + renderInlineMarkdown(escapeHtmlServer(itemText)) + '</span></li>');
+      continue;
+    }
+
     if (/^-\s+/.test(trimmed)) {
-      if (!inList) {
-        html.push("<ul>");
-        inList = true;
+      if (inOl) {
+        html.push('</ol>');
+        inOl = false;
+      }
+      if (!inUl) {
+        html.push('<ul>');
+        inUl = true;
       }
       html.push('<li>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^-\s+/, ""))) + '</li>');
       continue;
     }
 
-    closeList();
-    html.push('<p>' + renderInlineMarkdown(line) + '</p>');
+    closeLists();
+    html.push('<p>' + renderInlineMarkdown(escaped) + '</p>');
   }
 
-  closeList();
+  closeCode();
+  closeLists();
+  closeQuote();
   return html.join("\n");
 }
 

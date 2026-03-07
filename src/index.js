@@ -182,25 +182,13 @@ function renderTextPage(content, key, title) {
     .content video,.content audio { width: 100%; margin: 0 0 14px; }
     .content del { color: var(--sub); }
     .content code { padding: 2px 6px; border-radius: 8px; background: rgba(148,163,184,0.18); font-family: ui-monospace, SFMono-Regular, monospace; font-size: .92em; }
-    .content .katex-display { overflow-x: auto; overflow-y: hidden; padding: 6px 0; }
-    .content .katex { position: relative; display: inline-block; }
-    .content .katex .katex-mathml {
-      position: absolute !important;
-      top: 0;
-      left: 0;
-      width: 1px !important;
-      height: 1px !important;
-      padding: 0 !important;
-      margin: -1px !important;
-      overflow: hidden !important;
-      clip: rect(0, 0, 0, 0) !important;
-      clip-path: inset(50%) !important;
-      white-space: nowrap !important;
-      border: 0 !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-      user-select: none !important;
-    }
+    .content .math-block { overflow-x: auto; overflow-y: hidden; padding: 6px 0; margin: 0 0 14px; }
+    .content .math-inline { display: inline-block; vertical-align: middle; max-width: 100%; }
+    .content .math-block .katex,
+    .content .math-inline .katex { font-size: 1.05em; }
+    .content .math-block .katex-html,
+    .content .math-inline .katex-html { display: inline-block; max-width: 100%; }
+
     .content .katex .katex-html {
       position: relative;
       display: inline-block;

@@ -779,7 +779,7 @@ export const htmlIndex = `<!DOCTYPE html>
               <div class="field">
                 <label for="k">自定义后缀（可选）</label>
                 <div class="input suffix-shell">
-                  <input class="input suffix-input" type="text" id="k" placeholder="e.g. note / guide / memo" autocomplete="off" />
+                  <input class="suffix-input" type="text" id="k" placeholder="e.g. note / guide / memo" autocomplete="off" />
                 </div>
                 <div class="hint">建议使用字母、数字、短横线；系统保留后缀不可用。</div>
               </div>

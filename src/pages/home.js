@@ -49,11 +49,13 @@ export const htmlIndex = `<!DOCTYPE html>
       .input,
       .textarea,
       .file-shell {
-        background: rgba(15,23,42,0.88);
-        color: var(--text);
+        background-color: rgba(15,23,42,0.96) !important;
+        background: rgba(15,23,42,0.96) !important;
+        color: var(--text) !important;
+        caret-color: var(--text);
         border-color: rgba(100,116,139,0.54);
         color-scheme: dark;
-        -webkit-text-fill-color: var(--text);
+        -webkit-text-fill-color: var(--text) !important;
       }
 
       .input::placeholder,
@@ -387,10 +389,18 @@ export const htmlIndex = `<!DOCTYPE html>
     .file-shell {
       width: 100%;
       border: 1px solid var(--border-strong);
+      background-color: rgba(255,255,255,0.86);
       background: rgba(255,255,255,0.86);
       color: var(--text);
+      caret-color: var(--text);
       border-radius: var(--radius-lg);
       transition: .16s border-color ease, .16s box-shadow ease, .16s transform ease;
+    }
+
+    .input,
+    .textarea {
+      -webkit-appearance: none;
+      appearance: none;
     }
 
     .input,

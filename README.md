@@ -14,9 +14,9 @@
 
 ## 一键部署
 
-点击下面按钮，直接部署到您自己的 Cloudflare 账号：
+点击下面按钮，直接部署到您自己的 Cloudflare 账号。如果页面展示旧的默认名，先强刷或重新打开部署页一次：
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/himyhy/cflink)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/himyhy/cflink&ref=main)
 
 ## 最短部署清单
 

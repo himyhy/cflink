@@ -1,10 +1,10 @@
 {
-  "name": "shortlink-workers-kv",
+  "name": "cflink",
   "version": "1.0.0",
   "private": true,
   "description": "Cloudflare Workers + KV shortlink service with admin panel",
   "cloudflare": {
-    "label": "Shortlink Workers KV",
+    "label": "CFLink",
     "products": [
       "Workers",
       "KV"

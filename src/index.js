@@ -47,16 +47,16 @@ function extractFootnotes(text) {
 function replaceBlockMathWithPlaceholders(text) {
   const blocks = [];
   let content = String(text || '');
-  content = content.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => {
+
+  function pushBlock(expr) {
     const id = blocks.length;
     blocks.push(katex.renderToString(String(expr || '').trim(), { throwOnError: false, displayMode: true }));
     return '\n\n@@BLOCK_MATH_' + id + '@@\n\n';
-  });
-  content = content.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => {
-    const id = blocks.length;
-    blocks.push(katex.renderToString(String(expr || '').trim(), { throwOnError: false, displayMode: true }));
-    return '\n\n@@BLOCK_MATH_' + id + '@@\n\n';
-  });
+  }
+
+  content = content.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => pushBlock(expr));
+  content = content.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => pushBlock(expr));
+  content = content.replace(/(^|\n)((?:\\begin\{[^}]+\}[\s\S]+?\\end\{[^}]+\}))(?:\n|$)/g, (_, prefix, expr) => (prefix || '') + pushBlock(expr));
   return { content, blocks };
 }
 

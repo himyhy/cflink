@@ -26,17 +26,17 @@ export function restoreMathPlaceholders(html, math) {
   out = out.replace(/<p>@@MATH_BLOCK_(\d+)@@<\/p>/g, (_, id) => {
     const item = math[Number(id)];
     if (!item) return '';
-    return '<div class="math-block">\\[' + item.expr + '\\]</div>';
+    return '<div class="math-block" data-math-display="true" data-expr="' + encodeURIComponent(item.expr) + '"></div>';
   });
   out = out.replace(/@@MATH_BLOCK_(\d+)@@/g, (_, id) => {
     const item = math[Number(id)];
     if (!item) return '';
-    return '<div class="math-block">\\[' + item.expr + '\\]</div>';
+    return '<div class="math-block" data-math-display="true" data-expr="' + encodeURIComponent(item.expr) + '"></div>';
   });
   out = out.replace(/@@MATH_INLINE_(\d+)@@/g, (_, id) => {
     const item = math[Number(id)];
     if (!item) return '';
-    return '<span class="math-inline">\\(' + item.expr + '\\)</span>';
+    return '<span class="math-inline" data-expr="' + encodeURIComponent(item.expr) + '"></span>';
   });
   return out;
 }

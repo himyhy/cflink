@@ -45,6 +45,41 @@ export const htmlIndex = `<!DOCTYPE html>
         --shadow-lg: 0 34px 80px rgba(2,6,23,0.55);
         --shadow-md: 0 18px 42px rgba(2,6,23,0.42);
       }
+
+      .input,
+      .textarea,
+      .file-shell {
+        background: rgba(15,23,42,0.88);
+        color: var(--text);
+        border-color: rgba(100,116,139,0.54);
+        color-scheme: dark;
+        -webkit-text-fill-color: var(--text);
+      }
+
+      .input::placeholder,
+      .textarea::placeholder {
+        color: rgba(148,163,184,0.88);
+        -webkit-text-fill-color: rgba(148,163,184,0.88);
+        opacity: 1;
+      }
+
+      .input:focus,
+      .textarea:focus,
+      .file-shell.is-active {
+        border-color: rgba(96,165,250,0.88);
+        box-shadow: 0 0 0 4px rgba(59,130,246,0.18);
+      }
+
+      .input:-webkit-autofill,
+      .input:-webkit-autofill:hover,
+      .input:-webkit-autofill:focus,
+      .textarea:-webkit-autofill,
+      .textarea:-webkit-autofill:hover,
+      .textarea:-webkit-autofill:focus {
+        -webkit-text-fill-color: var(--text);
+        box-shadow: 0 0 0 1000px rgba(15,23,42,0.94) inset;
+        transition: background-color 9999s ease-out 0s;
+      }
     }
 
     * { box-sizing: border-box; }

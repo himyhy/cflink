@@ -23,46 +23,92 @@ export function renderTextPage(content, key, title) {
   <style>
     :root {
       color-scheme: light dark;
-      --bg: #f3f4f6;
-      --card: rgba(255,255,255,0.88);
-      --border: rgba(148,163,184,0.35);
+      --bg: #edf4ff;
+      --bg-2: #f8fbff;
+      --surface: rgba(255,255,255,0.86);
+      --surface-strong: rgba(255,255,255,0.94);
+      --border: rgba(148,163,184,0.24);
+      --border-strong: rgba(148,163,184,0.34);
       --text: #0f172a;
-      --sub: #64748b;
+      --sub: #475569;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --primary-2: #4f46e5;
+      --success: #16a34a;
+      --shadow-lg: 0 24px 60px rgba(15,23,42,0.10);
+      --shadow-md: 0 14px 32px rgba(15,23,42,0.08);
     }
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #020617;
-        --card: rgba(15,23,42,0.9);
-        --border: rgba(71,85,105,0.6);
-        --text: #e5e7eb;
-        --sub: #94a3b8;
+        --bg-2: #0b1120;
+        --surface: rgba(15,23,42,0.86);
+        --surface-strong: rgba(15,23,42,0.94);
+        --border: rgba(71,85,105,0.34);
+        --border-strong: rgba(100,116,139,0.48);
+        --text: #e2e8f0;
+        --sub: #cbd5e1;
+        --muted: #94a3b8;
+        --shadow-lg: 0 28px 72px rgba(2,6,23,0.48);
+        --shadow-md: 0 18px 36px rgba(2,6,23,0.38);
       }
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      padding: 24px 16px;
-      background: radial-gradient(circle at top left, rgba(56,189,248,0.15), transparent 35%), var(--bg);
+      padding: 12px;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(59,130,246,0.18), transparent 28%),
+        radial-gradient(circle at 100% 10%, rgba(79,70,229,0.14), transparent 24%),
+        linear-gradient(180deg, var(--bg), var(--bg-2));
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
-    .wrap { max-width: 760px; margin: 0 auto; }
-    .card {
-      border: 1px solid var(--border);
-      background: var(--card);
-      border-radius: 24px;
-      padding: 24px 20px;
-      backdrop-filter: blur(18px) saturate(130%);
-      -webkit-backdrop-filter: blur(18px) saturate(130%);
-      box-shadow: 0 18px 40px rgba(15,23,42,0.15);
+    .wrap { max-width: 860px; margin: 0 auto; }
+    .topbar {
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      margin-bottom:12px; padding:4px 2px;
     }
-    .toolbar { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom: 12px; flex-wrap:wrap; }
-    .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--sub); }
-    h1 { margin: 10px 0 8px; font-size: 24px; }
-    .meta { margin: 0 0 18px; color: var(--sub); font-size: 13px; }
-    .copy-btn { border:none; border-radius:12px; padding:10px 14px; cursor:pointer; color:#fff; background:linear-gradient(90deg,#16a34a,#22c55e); font-weight:600; }
-    .content { line-height: 1.75; font-size: 16px; word-break: break-word; white-space: normal; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand-mark {
+      width:36px; height:36px; border-radius:12px; position:relative; overflow:hidden; flex:0 0 auto;
+      background:linear-gradient(135deg,#2563eb,#4f46e5); box-shadow:0 14px 26px rgba(37,99,235,.22);
+    }
+    .brand-mark::before {
+      content:""; position:absolute; inset:1px; border-radius:11px;
+      background:linear-gradient(180deg,rgba(255,255,255,.32),rgba(255,255,255,.03));
+    }
+    .brand-name { font-size:17px; font-weight:800; letter-spacing:-.03em; }
+    .brand-sub { color:var(--muted); font-size:12px; margin-top:2px; }
+    .top-actions { display:flex; gap:8px; }
+    .btn {
+      min-height:40px; padding:0 14px; border-radius:12px; border:none; cursor:pointer;
+      font-size:13px; font-weight:800; text-decoration:none;
+      display:inline-flex; align-items:center; justify-content:center;
+    }
+    .btn-primary { color:#fff; background:linear-gradient(90deg,var(--primary),var(--primary-2)); box-shadow:0 12px 24px rgba(37,99,235,.20); }
+    .btn-success { color:#fff; background:linear-gradient(90deg,#16a34a,#22c55e); box-shadow:0 12px 24px rgba(34,197,94,.18); }
+    .btn-ghost { color:var(--text); background:rgba(148,163,184,.08); border:1px solid var(--border); }
+
+    .panel {
+      border:1px solid var(--border); background:var(--surface); border-radius:24px; box-shadow:var(--shadow-lg);
+      backdrop-filter:blur(18px) saturate(145%); -webkit-backdrop-filter:blur(18px) saturate(145%); padding:16px;
+    }
+    .hero { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+    .eyebrow {
+      display:inline-flex; padding:6px 10px; border-radius:999px; margin-bottom:10px;
+      border:1px solid rgba(37,99,235,.16); background:rgba(37,99,235,.10); color:var(--primary);
+      font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+    }
+    h1 { margin:0 0 6px; font-size:clamp(24px,6vw,34px); letter-spacing:-.05em; }
+    .meta { margin:0; color:var(--sub); font-size:13px; line-height:1.7; }
+    .content {
+      margin-top:14px; padding:14px; border-radius:16px; border:1px solid var(--border);
+      background:var(--surface-strong); line-height:1.78; font-size:16px; word-break:break-word;
+    }
     .content h1,.content h2,.content h3 { margin: 18px 0 8px; line-height:1.35; }
     .content p { margin: 0 0 12px; }
     .content ul,.content ol { margin: 0 0 12px 20px; padding: 0; }
@@ -81,30 +127,43 @@ export function renderTextPage(content, key, title) {
     .content pre code { padding: 0; background: transparent; color: inherit; }
     .content blockquote { margin: 0 0 14px; padding: 2px 0 2px 14px; border-left: 4px solid rgba(37,99,235,0.4); color: var(--sub); }
     .content hr { border: none; border-top: 1px solid rgba(148,163,184,0.35); margin: 18px 0; }
-    .content .table-wrap { overflow-x: auto; margin: 0 0 14px; }
     .content table { width: 100%; border-collapse: collapse; min-width: 420px; }
     .content th,.content td { padding: 10px 12px; border: 1px solid rgba(148,163,184,0.28); text-align: left; vertical-align: top; }
     .content th { background: rgba(148,163,184,0.12); font-weight: 700; }
-    .content .md-space { height: 8px; }
-    .content .task-list { list-style: none; margin-left: 0; }
-    .content .task-item { display:flex; align-items:flex-start; gap:10px; }
-    .content .task-item input { margin-top: 4px; }
     .content .footnotes { margin-top: 24px; padding-top: 14px; border-top: 1px solid rgba(148,163,184,0.35); color: var(--sub); font-size: 14px; }
     .content .footnotes ol { margin-top: 10px; }
     .content .footnote-backref { text-decoration: none; margin-left: 6px; }
     .content a { color: #2563eb; }
+    @media (max-width: 640px) {
+      .top-actions { width:100%; }
+      .top-actions .btn { flex:1; }
+      .hero { flex-direction:column; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <article class="card">
-      <div class="toolbar">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
         <div>
-          <div class="eyebrow">TEXT SHARE</div>
+          <div class="brand-name">CFLink</div>
+          <div class="brand-sub">文本分享</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a class="btn btn-ghost" href="/">回到首页</a>
+        <button class="btn btn-success" type="button" onclick="copyContent(this)">复制内容</button>
+      </div>
+    </header>
+
+    <article class="panel">
+      <div class="hero">
+        <div>
+          <div class="eyebrow">Text Share</div>
           <h1>${safeTitle || "文本内容"}</h1>
           <p class="meta">链接标识：/${safeKey || "-"}</p>
         </div>
-        <button class="copy-btn" type="button" onclick="copyContent(this)">复制内容</button>
       </div>
       <div class="content">${renderedContent || "<p>（空内容）</p>"}</div>
     </article>
@@ -150,7 +209,6 @@ export function renderTextPage(content, key, title) {
     async function loadMathJax() {
       if (window.MathJax && window.MathJax.tex2svgPromise) return true;
       if (__mathLoadPromise) return __mathLoadPromise;
-
       __mathLoadPromise = (async () => {
         for (const src of MATHJAX_SOURCES) {
           const ok = await new Promise((resolve) => {
@@ -158,14 +216,10 @@ export function renderTextPage(content, key, title) {
             script.src = src;
             script.async = true;
             script.onload = () => resolve(true);
-            script.onerror = () => {
-              script.remove();
-              resolve(false);
-            };
+            script.onerror = () => { script.remove(); resolve(false); };
             document.head.appendChild(script);
           });
           if (!ok) continue;
-
           for (let i = 0; i < 100; i++) {
             if (window.MathJax && window.MathJax.tex2svgPromise) return true;
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -173,7 +227,6 @@ export function renderTextPage(content, key, title) {
         }
         return false;
       })();
-
       return __mathLoadPromise;
     }
 
@@ -213,13 +266,8 @@ export function renderTextPage(content, key, title) {
       }
     }
 
-    window.addEventListener('load', () => {
-      ensureMathRendered();
-    });
-
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      ensureMathRendered();
-    }
+    window.addEventListener('load', () => { ensureMathRendered(); });
+    if (document.readyState === 'complete' || document.readyState === 'interactive') ensureMathRendered();
   </script>
 </body>
 </html>`;

@@ -22,18 +22,21 @@ export function renderFilePage(file, key) {
   const safeType = escapeHtmlLocal(file?.contentType || 'application/octet-stream');
   const previewUrl = '/' + encodeURIComponent(key || '') + '/raw';
   const downloadUrl = '/' + encodeURIComponent(key || '') + '/download';
-  let preview = '<p style="color:#64748b;">该文件类型暂不支持在线预览，请直接下载。</p>';
-  if (String(file?.contentType || '').toLowerCase().startsWith('image/')) {
-    preview = '<img src="' + previewUrl + '" alt="' + safeFilename + '" style="max-width:100%;border-radius:16px;display:block;">';
-  } else if (String(file?.contentType || '').toLowerCase() === 'application/pdf') {
-    preview = '<iframe src="' + previewUrl + '" style="width:100%;height:72vh;border:none;border-radius:16px;background:#fff;"></iframe>';
-  } else if (String(file?.contentType || '').toLowerCase().startsWith('audio/')) {
-    preview = '<audio controls style="width:100%;" src="' + previewUrl + '"></audio>';
-  } else if (String(file?.contentType || '').toLowerCase().startsWith('video/')) {
-    preview = '<video controls style="width:100%;border-radius:16px;background:#000;" src="' + previewUrl + '"></video>';
-  } else if (String(file?.contentType || '').toLowerCase().startsWith('text/')) {
-    preview = '<iframe src="' + previewUrl + '" style="width:100%;height:72vh;border:none;border-radius:16px;background:#fff;"></iframe>';
+  const lowerType = String(file?.contentType || '').toLowerCase();
+
+  let preview = '<div class="empty">该文件类型暂不支持在线预览，请直接下载。</div>';
+  if (lowerType.startsWith('image/')) {
+    preview = '<img class="preview-image" src="' + previewUrl + '" alt="' + safeFilename + '">';
+  } else if (lowerType === 'application/pdf') {
+    preview = '<iframe class="preview-frame" src="' + previewUrl + '"></iframe>';
+  } else if (lowerType.startsWith('audio/')) {
+    preview = '<audio controls class="preview-audio" src="' + previewUrl + '"></audio>';
+  } else if (lowerType.startsWith('video/')) {
+    preview = '<video controls class="preview-video" src="' + previewUrl + '"></video>';
+  } else if (lowerType.startsWith('text/')) {
+    preview = '<iframe class="preview-frame" src="' + previewUrl + '"></iframe>';
   }
+
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -41,14 +44,125 @@ export function renderFilePage(file, key) {
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>${safeTitle}</title>
   <style>
-    body{margin:0;padding:24px 16px;background:#f3f4f6;color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
-    .wrap{max-width:960px;margin:0 auto}.card{background:#fff;border:1px solid rgba(148,163,184,.35);border-radius:24px;padding:24px 20px;box-shadow:0 18px 40px rgba(15,23,42,.08)}
-    .meta{color:#64748b;font-size:14px;line-height:1.7}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.btn{display:inline-block;padding:10px 14px;border-radius:12px;text-decoration:none;color:#fff;background:linear-gradient(90deg,#2563eb,#4f46e5)}
-    .btn.secondary{background:linear-gradient(90deg,#16a34a,#22c55e)}
+    :root {
+      color-scheme: light dark;
+      --bg: #edf4ff;
+      --bg-2: #f8fbff;
+      --surface: rgba(255,255,255,0.86);
+      --surface-strong: rgba(255,255,255,0.94);
+      --border: rgba(148,163,184,0.24);
+      --text: #0f172a;
+      --sub: #475569;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --primary-2: #4f46e5;
+      --success: #16a34a;
+      --shadow-lg: 0 24px 60px rgba(15,23,42,0.10);
+      --shadow-md: 0 14px 32px rgba(15,23,42,0.08);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #020617;
+        --bg-2: #0b1120;
+        --surface: rgba(15,23,42,0.86);
+        --surface-strong: rgba(15,23,42,0.94);
+        --border: rgba(71,85,105,0.34);
+        --text: #e2e8f0;
+        --sub: #cbd5e1;
+        --muted: #94a3b8;
+        --shadow-lg: 0 28px 72px rgba(2,6,23,0.48);
+        --shadow-md: 0 18px 36px rgba(2,6,23,0.38);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 12px;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(59,130,246,0.18), transparent 28%),
+        radial-gradient(circle at 100% 10%, rgba(79,70,229,0.14), transparent 24%),
+        linear-gradient(180deg, var(--bg), var(--bg-2));
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; }
+    .topbar {
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      margin-bottom:12px; padding:4px 2px;
+    }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand-mark {
+      width:36px; height:36px; border-radius:12px; position:relative; overflow:hidden; flex:0 0 auto;
+      background:linear-gradient(135deg,#2563eb,#4f46e5); box-shadow:0 14px 26px rgba(37,99,235,.22);
+    }
+    .brand-mark::before {
+      content:""; position:absolute; inset:1px; border-radius:11px;
+      background:linear-gradient(180deg,rgba(255,255,255,.32),rgba(255,255,255,.03));
+    }
+    .brand-name { font-size:17px; font-weight:800; letter-spacing:-.03em; }
+    .brand-sub { color:var(--muted); font-size:12px; margin-top:2px; }
+    .top-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn {
+      min-height:40px; padding:0 14px; border-radius:12px; border:none; cursor:pointer;
+      font-size:13px; font-weight:800; text-decoration:none;
+      display:inline-flex; align-items:center; justify-content:center;
+    }
+    .btn-primary { color:#fff; background:linear-gradient(90deg,var(--primary),var(--primary-2)); box-shadow:0 12px 24px rgba(37,99,235,.20); }
+    .btn-success { color:#fff; background:linear-gradient(90deg,#16a34a,#22c55e); box-shadow:0 12px 24px rgba(34,197,94,.18); }
+    .btn-ghost { color:var(--text); background:rgba(148,163,184,.08); border:1px solid var(--border); }
+    .panel {
+      border:1px solid var(--border); background:var(--surface); border-radius:24px; box-shadow:var(--shadow-lg);
+      backdrop-filter:blur(18px) saturate(145%); -webkit-backdrop-filter:blur(18px) saturate(145%); padding:16px;
+    }
+    .eyebrow {
+      display:inline-flex; padding:6px 10px; border-radius:999px; margin-bottom:10px;
+      border:1px solid rgba(37,99,235,.16); background:rgba(37,99,235,.10); color:var(--primary);
+      font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+    }
+    h1 { margin:0 0 6px; font-size:clamp(24px,6vw,34px); letter-spacing:-.05em; }
+    .meta { margin:0; color:var(--sub); font-size:13px; line-height:1.75; }
+    .preview {
+      margin-top:14px; padding:14px; border-radius:16px; border:1px solid var(--border); background:var(--surface-strong);
+      box-shadow: var(--shadow-md);
+    }
+    .preview-image,.preview-video { width:100%; border-radius:14px; display:block; background:#000; }
+    .preview-audio { width:100%; }
+    .preview-frame { width:100%; height:72vh; border:none; border-radius:14px; background:#fff; }
+    .empty { color:var(--sub); font-size:14px; line-height:1.7; }
+    @media (max-width: 640px) {
+      .top-actions { width:100%; }
+      .top-actions .btn { flex:1; }
+      .preview-frame { height:60vh; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap"><article class="card"><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#64748b;">FILE SHARE</div><h1 style="margin:10px 0 8px;">${safeTitle}</h1><p class="meta">链接标识：/${safeKey || '-'}<br>文件名：${safeFilename}<br>MIME：${safeType}<br>大小：${escapeHtmlLocal(formatBytesLocal(file?.size || 0))}</p><div class="actions"><a class="btn" href="${previewUrl}" target="_blank" rel="noopener noreferrer">打开原文件</a><a class="btn secondary" href="${downloadUrl}">下载文件</a></div>${preview}</article></div>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div>
+          <div class="brand-name">CFLink</div>
+          <div class="brand-sub">文件分享</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a class="btn btn-ghost" href="/">回到首页</a>
+        <a class="btn btn-primary" href="${previewUrl}" target="_blank" rel="noopener noreferrer">打开原文件</a>
+        <a class="btn btn-success" href="${downloadUrl}">下载文件</a>
+      </div>
+    </header>
+
+    <article class="panel">
+      <div class="eyebrow">File Share</div>
+      <h1>${safeTitle}</h1>
+      <p class="meta">链接标识：/${safeKey || '-'}<br>文件名：${safeFilename}<br>MIME：${safeType}<br>大小：${escapeHtmlLocal(formatBytesLocal(file?.size || 0))}</p>
+      <div class="preview">${preview}</div>
+    </article>
+  </div>
 </body>
 </html>`;
 }

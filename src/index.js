@@ -1,6 +1,35 @@
+import { marked } from "marked";
+import { markedHighlight } from "marked-highlight";
+import hljs from "highlight.js";
+import katex from "katex";
 // ==================== 基础配置 ====================
 // 后台密码优先使用环境变量 ADMIN_PASS；若未配置则回退到默认占位值
 const DEFAULT_ADMIN_PASS = "change-this-password";
+marked.use(markedHighlight({
+  emptyLangClass: 'hljs',
+  langPrefix: 'hljs language-',
+  highlight(code, lang) {
+    const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+    return hljs.highlight(code, { language }).value;
+  },
+}));
+
+function renderMathInHtml(input) {
+  let output = String(input || '');
+  output = output.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: true }));
+  output = output.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: true }));
+  output = output.replace(/\\\((.+?)\\\)/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: false }));
+  return output;
+}
+
+function renderRichMarkdown(text) {
+  const rawHtml = marked.parse(String(text || ''), {
+    gfm: true,
+    breaks: true,
+  });
+  return renderMathInHtml(rawHtml);
+}
+
 
 function escapeHtmlServer(input) {
   return String(input ?? "")
@@ -14,7 +43,7 @@ function escapeHtmlServer(input) {
 function renderTextPage(content, key, title) {
   const safeKey = escapeHtmlServer(key || "");
   const safeTitle = escapeHtmlServer(title || "");
-  const renderedContent = renderBasicMarkdown(content);
+  const renderedContent = renderRichMarkdown(content);
   const copyTextJson = JSON.stringify(String(content || ""));
   return `<!DOCTYPE html>
 <html lang="zh-CN">

@@ -11,15 +11,17 @@ function escapeHtmlServer(input) {
     .replaceAll("'", "&#39;");
 }
 
-function renderTextPage(content, key) {
-  const safeContent = escapeHtmlServer(content).replaceAll("\n", "<br>");
+function renderTextPage(content, key, title) {
   const safeKey = escapeHtmlServer(key || "");
+  const safeTitle = escapeHtmlServer(title || "");
+  const renderedContent = renderBasicMarkdown(content);
+  const copyTextJson = JSON.stringify(String(content || ""));
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>${safeKey ? safeKey + " - 文本页" : "文本页"}</title>
+  <title>${safeTitle || (safeKey ? safeKey + " - 文本页" : "文本页")}</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -57,21 +59,46 @@ function renderTextPage(content, key) {
       -webkit-backdrop-filter: blur(18px) saturate(130%);
       box-shadow: 0 18px 40px rgba(15,23,42,0.15);
     }
+    .toolbar { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom: 12px; flex-wrap:wrap; }
     .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--sub); }
     h1 { margin: 10px 0 8px; font-size: 24px; }
     .meta { margin: 0 0 18px; color: var(--sub); font-size: 13px; }
+    .copy-btn { border:none; border-radius:12px; padding:10px 14px; cursor:pointer; color:#fff; background:linear-gradient(90deg,#16a34a,#22c55e); font-weight:600; }
     .content { line-height: 1.75; font-size: 16px; word-break: break-word; white-space: normal; }
+    .content h1,.content h2,.content h3 { margin: 18px 0 8px; line-height:1.35; }
+    .content p { margin: 0 0 12px; }
+    .content ul { margin: 0 0 12px 20px; padding: 0; }
+    .content li { margin: 0 0 8px; }
+    .content code { padding: 2px 6px; border-radius: 8px; background: rgba(148,163,184,0.18); font-family: ui-monospace, SFMono-Regular, monospace; font-size: .92em; }
+    .content a { color: #2563eb; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <article class="card">
-      <div class="eyebrow">TEXT SHARE</div>
-      <h1>文本内容</h1>
-      <p class="meta">链接标识：/${safeKey || "-"}</p>
-      <div class="content">${safeContent || "（空内容）"}</div>
+      <div class="toolbar">
+        <div>
+          <div class="eyebrow">TEXT SHARE</div>
+          <h1>${safeTitle || "文本内容"}</h1>
+          <p class="meta">链接标识：/${safeKey || "-"}</p>
+        </div>
+        <button class="copy-btn" type="button" onclick="copyContent(this)">复制内容</button>
+      </div>
+      <div class="content">${renderedContent || "<p>（空内容）</p>"}</div>
     </article>
   </div>
+  <script>
+    async function copyContent(btn) {
+      try {
+        await navigator.clipboard.writeText(${copyTextJson});
+        const old = btn.textContent;
+        btn.textContent = '已复制';
+        setTimeout(() => { btn.textContent = old; }, 1800);
+      } catch (e) {
+        alert('复制失败，请手动复制。');
+      }
+    }
+  </script>
 </body>
 </html>`;
 }
@@ -92,11 +119,75 @@ function parseStoredValue(raw) {
         return { type: "url", value: parsed.url, raw };
       }
       if (parsed.type === "text" && typeof parsed.text === "string") {
-        return { type: "text", value: parsed.text, raw };
+        return { type: "text", value: parsed.text, title: typeof parsed.title === "string" ? parsed.title : "", raw };
       }
     }
   } catch (e) {}
-  return { type: "text", value: raw, raw };
+  return { type: "text", value: raw, title: "", raw };
+}
+
+function renderInlineMarkdown(text) {
+  return String(text || "")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/__(.+?)__/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/_(.+?)_/g, "<em>$1</em>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+}
+
+function renderBasicMarkdown(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const html = [];
+  let inList = false;
+
+  function closeList() {
+    if (inList) {
+      html.push("</ul>");
+      inList = false;
+    }
+  }
+
+  for (const rawLine of lines) {
+    const line = escapeHtmlServer(rawLine);
+    const trimmed = rawLine.trim();
+
+    if (!trimmed) {
+      closeList();
+      html.push('<div style="height:10px"></div>');
+      continue;
+    }
+
+    if (/^###\s+/.test(trimmed)) {
+      closeList();
+      html.push('<h3>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^###\s+/, ""))) + '</h3>');
+      continue;
+    }
+    if (/^##\s+/.test(trimmed)) {
+      closeList();
+      html.push('<h2>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^##\s+/, ""))) + '</h2>');
+      continue;
+    }
+    if (/^#\s+/.test(trimmed)) {
+      closeList();
+      html.push('<h1>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^#\s+/, ""))) + '</h1>');
+      continue;
+    }
+    if (/^-\s+/.test(trimmed)) {
+      if (!inList) {
+        html.push("<ul>");
+        inList = true;
+      }
+      html.push('<li>' + renderInlineMarkdown(escapeHtmlServer(trimmed.replace(/^-\s+/, ""))) + '</li>');
+      continue;
+    }
+
+    closeList();
+    html.push('<p>' + renderInlineMarkdown(line) + '</p>');
+  }
+
+  closeList();
+  return html.join("\n");
 }
 
 // ==================== 1. 后台管理页面模板 ====================
@@ -1077,10 +1168,17 @@ const htmlIndex = `<!DOCTYPE html>
           </div>
 
           <div class="field" id="textField" style="display:none;">
+            <label for="tt">文本页标题（可选）</label>
+            <input
+              type="text"
+              id="tt"
+              placeholder="例如：临时公告 / 使用说明 / 今日笔记"
+              autocomplete="off"
+            />
             <label for="t">文本内容</label>
             <textarea
               id="t"
-              placeholder="输入你想分享的文字内容，访问生成后的链接即可看到这段文字。"
+              placeholder="支持基础 Markdown：标题、列表、粗体、斜体、行内代码、链接。"
             ></textarea>
           </div>
 
@@ -1130,6 +1228,7 @@ const htmlIndex = `<!DOCTYPE html>
     async function s() {
       const u = document.getElementById('u').value.trim();
       const t = document.getElementById('t').value.trim();
+      const tt = document.getElementById('tt').value.trim();
       const k = document.getElementById('k').value.trim();
 
       if (mode === 'url') {
@@ -1148,7 +1247,7 @@ const htmlIndex = `<!DOCTYPE html>
       try {
         const res = await fetch('/', {
           method: 'POST',
-          body: JSON.stringify({ type: mode, url: u, text: t, key: k })
+          body: JSON.stringify({ type: mode, url: u, text: t, title: tt, key: k })
         });
         const d = await res.json();
 
@@ -1541,6 +1640,7 @@ async function handleRequest(request) {
     const type = req?.type === "text" ? "text" : "url";
     const reqUrl = typeof req.url === "string" ? req.url.trim() : "";
     const reqText = typeof req.text === "string" ? req.text.trim() : "";
+    const reqTitle = typeof req.title === "string" ? req.title.trim() : "";
 
     if (type === "url" && !reqUrl) {
       return new Response(JSON.stringify({ error: "链接不能为空" }), {
@@ -1625,7 +1725,7 @@ async function handleRequest(request) {
         invalidateAdminListCache();
       }
     } else {
-      await LINKS.put(key, encodeStoredValue({ type: "text", text: reqText }), { metadata: { createdAt: Date.now() } });
+      await LINKS.put(key, encodeStoredValue({ type: "text", title: reqTitle, text: reqText }), { metadata: { createdAt: Date.now() } });
       invalidateAdminListCache();
     }
 
@@ -1648,7 +1748,7 @@ async function handleRequest(request) {
     return Response.redirect(target.value + url.search, 302);
   }
   if (target?.type === 'text') {
-    return new Response(renderTextPage(target.value, path), { headers: htmlHeaders });
+    return new Response(renderTextPage(target.value, path, target.title), { headers: htmlHeaders });
   }
 
   // 未创建的后缀：跳转到统一 404 页面

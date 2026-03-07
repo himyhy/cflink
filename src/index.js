@@ -33,13 +33,29 @@ function sanitizeRenderedHtml(html) {
   return out;
 }
 
+function enhanceRenderedHtml(html) {
+  return String(html || '').replace(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g, (_, attrs, codeHtml) => {
+    const plain = codeHtml
+      .replace(/<span[^>]*>/g, '')
+      .replace(/<\/span>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+    const encoded = encodeURIComponent(plain);
+    return '<div class="code-block"><div class="code-toolbar"><span>代码块</span><button class="code-copy-btn" type="button" data-code="' + encoded + '">复制代码</button></div><pre><code' + attrs + '>' + codeHtml + '</code></pre></div>';
+  });
+}
+
 function renderRichMarkdown(text) {
   const rawHtml = marked.parse(String(text || ''), {
     gfm: true,
     breaks: true,
   });
   const mathHtml = renderMathInHtml(rawHtml);
-  return sanitizeRenderedHtml(mathHtml);
+  const safeHtml = sanitizeRenderedHtml(mathHtml);
+  return enhanceRenderedHtml(safeHtml);
 }
 
 
@@ -114,7 +130,11 @@ function renderTextPage(content, key, title) {
     .content video,.content audio { width: 100%; margin: 0 0 14px; }
     .content del { color: var(--sub); }
     .content code { padding: 2px 6px; border-radius: 8px; background: rgba(148,163,184,0.18); font-family: ui-monospace, SFMono-Regular, monospace; font-size: .92em; }
-    .content pre { margin: 0 0 14px; padding: 14px; overflow:auto; border-radius: 14px; background: rgba(15,23,42,0.9); color: #e5e7eb; }
+    .content .katex-display { overflow-x: auto; overflow-y: hidden; padding: 6px 0; }
+    .content .code-block { margin: 0 0 14px; border-radius: 14px; overflow: hidden; background: rgba(15,23,42,0.96); color: #e5e7eb; }
+    .content .code-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 12px; color: #94a3b8; }
+    .content .code-copy-btn { border:none; border-radius: 10px; padding: 7px 10px; cursor:pointer; font-size: 12px; font-weight: 700; color: #fff; background: linear-gradient(90deg,#2563eb,#4f46e5); }
+    .content pre { margin: 0; padding: 14px; overflow:auto; background: transparent; color: #e5e7eb; }
     .content pre code { padding: 0; background: transparent; color: inherit; }
     .content blockquote { margin: 0 0 14px; padding: 2px 0 2px 14px; border-left: 4px solid rgba(37,99,235,0.4); color: var(--sub); }
     .content hr { border: none; border-top: 1px solid rgba(148,163,184,0.35); margin: 18px 0; }
@@ -144,6 +164,25 @@ function renderTextPage(content, key, title) {
     </article>
   </div>
   <script>
+    async function copyCode(btn) {
+      try {
+        const code = decodeURIComponent(btn.dataset.code || "");
+        await navigator.clipboard.writeText(code);
+        const old = btn.textContent;
+        btn.textContent = "已复制";
+        setTimeout(() => { btn.textContent = old; }, 1800);
+      } catch (e) {
+        alert("复制代码失败，请手动复制。");
+      }
+    }
+
+    document.addEventListener("click", function (event) {
+      const target = event.target;
+      if (target && target.classList && target.classList.contains("code-copy-btn")) {
+        copyCode(target);
+      }
+    });
+
     async function copyContent(btn) {
       try {
         await navigator.clipboard.writeText(${copyTextJson});

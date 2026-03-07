@@ -518,7 +518,7 @@ export const htmlAdmin = `<!DOCTYPE html>
       }
       const text = value.length > 220 ? value.slice(0, 220) + '…' : value;
       const titleHtml = title ? '<div class="item-title">' + escapeHtml(title) + '</div>' : '';
-      return '<div class="item-body">' + titleHtml + (text ? escapeHtml(text).replaceAll('\n', '<br>') : '<span style="color:var(--muted);">（空）</span>') + '</div>';
+      return '<div class="item-body">' + titleHtml + (text ? escapeHtml(text).split(String.fromCharCode(10)).join('<br>') : '<span style="color:var(--muted);">（空）</span>') + '</div>';
     }
 
     function renderCards(items) {

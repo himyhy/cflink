@@ -784,7 +784,7 @@ export const htmlIndex = `<!DOCTYPE html>
                 <label for="k">自定义后缀（可选）</label>
                 <div class="input suffix-shell">
                   <span class="suffix-prefix" id="suffixPrefix">当前域名 /</span>
-                  <input class="suffix-input" type="text" id="k" placeholder="例如：公告 / 说明 / 笔记" autocomplete="off" />
+                  <input class="suffix-input" type="text" id="k" placeholder="e.g. note / guide / memo" autocomplete="off" />
                 </div>
                 <div class="hint">建议使用字母、数字、短横线；系统保留后缀不可用。</div>
               </div>

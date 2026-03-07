@@ -2,28 +2,31 @@ export const htmlLogin = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>后台登录</title>
+  <title>CFLink 后台登录</title>
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <style>
     :root {
-      --bg-color: #f3f4f6;
-      --bg-gradient: radial-gradient(circle at top left, #e0f2fe 0, #f3f4f6 35%, #e5e7eb 100%);
-      --card-bg: rgba(255,255,255,0.84);
-      --card-border: rgba(148,163,184,0.45);
-      --card-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
-      --text-main: #0f172a;
-      --text-sub: #6b7280;
+      color-scheme: light dark;
+      --bg: #edf4ff;
+      --bg-2: #f8fbff;
+      --surface: rgba(255,255,255,0.84);
+      --border: rgba(148,163,184,0.28);
+      --text: #0f172a;
+      --sub: #64748b;
       --primary: #2563eb;
+      --primary-2: #4f46e5;
+      --danger: #dc2626;
+      --shadow: 0 28px 70px rgba(15,23,42,0.14);
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg-color: #020617;
-        --bg-gradient: radial-gradient(circle at top left, #0f172a 0, #020617 40%, #020617 100%);
-        --card-bg: rgba(15,23,42,0.88);
-        --card-border: rgba(51,65,85,0.9);
-        --card-shadow: 0 22px 60px rgba(15,23,42,0.9);
-        --text-main: #e5e7eb;
-        --text-sub: #94a3b8;
+        --bg: #020617;
+        --bg-2: #0b1120;
+        --surface: rgba(15,23,42,0.84);
+        --border: rgba(71,85,105,0.4);
+        --text: #e2e8f0;
+        --sub: #94a3b8;
+        --shadow: 0 34px 80px rgba(2,6,23,0.55);
       }
     }
     * { box-sizing: border-box; }
@@ -34,51 +37,70 @@ export const htmlLogin = `<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       padding: 18px;
-      background: var(--bg-gradient), var(--bg-color);
-      color: var(--text-main);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(59,130,246,0.20), transparent 28%),
+        radial-gradient(circle at 100% 10%, rgba(79,70,229,0.16), transparent 24%),
+        linear-gradient(180deg, var(--bg), var(--bg-2));
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
     .card {
       width: 100%;
-      max-width: 420px;
-      border-radius: 24px;
-      padding: 26px 22px;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      box-shadow: var(--card-shadow);
-      backdrop-filter: blur(20px) saturate(140%);
-      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      max-width: 440px;
+      padding: 28px 24px;
+      border-radius: 28px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px) saturate(145%);
+      -webkit-backdrop-filter: blur(20px) saturate(145%);
     }
-    h1 { margin: 0 0 8px; font-size: 24px; }
-    p { margin: 0 0 16px; color: var(--text-sub); font-size: 14px; line-height: 1.6; }
-    label { display: block; font-size: 13px; margin-bottom: 8px; color: var(--text-sub); }
+    .eyebrow {
+      display: inline-flex;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(37,99,235,0.16);
+      background: rgba(37,99,235,0.10);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 16px 0 8px; font-size: 30px; letter-spacing: -0.04em; }
+    p { margin: 0 0 18px; color: var(--sub); font-size: 14px; line-height: 1.7; }
+    label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: var(--sub); }
     input {
       width: 100%;
-      padding: 12px 13px;
-      border-radius: 12px;
-      border: 1px solid rgba(148,163,184,0.45);
+      padding: 13px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(148,163,184,0.4);
       background: rgba(255,255,255,0.9);
       color: inherit;
       outline: none;
       font-size: 14px;
     }
+    input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(59,130,246,0.14); }
     button {
       width: 100%;
       margin-top: 14px;
-      padding: 12px 14px;
+      min-height: 48px;
       border: none;
-      border-radius: 12px;
+      border-radius: 16px;
       color: #fff;
       cursor: pointer;
       font-size: 15px;
-      font-weight: 700;
-      background: linear-gradient(90deg,#2563eb,#4f46e5);
+      font-weight: 800;
+      background: linear-gradient(90deg,var(--primary),var(--primary-2));
+      box-shadow: 0 16px 30px rgba(37,99,235,0.24);
     }
-    .error { min-height: 20px; margin-top: 12px; color: #dc2626; font-size: 13px; }
+    .error { min-height: 20px; margin-top: 12px; color: var(--danger); font-size: 13px; }
   </style>
 </head>
 <body>
   <main class="card">
+    <div class="eyebrow">CFLink Admin</div>
     <h1>后台登录</h1>
     <p>输入管理员密码后进入后台。登录成功后会写入安全会话 Cookie。</p>
     <label for="pass">管理员密码</label>
@@ -124,317 +146,294 @@ export const htmlLogin = `<!DOCTYPE html>
 export const htmlAdmin = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>短链接管理后台</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <style>
+  <meta charset="UTF-8">
+  <title>CFLink 管理后台</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #edf4ff;
+      --bg-2: #f8fbff;
+      --surface: rgba(255,255,255,0.84);
+      --surface-strong: rgba(255,255,255,0.92);
+      --surface-soft: rgba(255,255,255,0.58);
+      --border: rgba(148,163,184,0.24);
+      --border-strong: rgba(148,163,184,0.34);
+      --text: #0f172a;
+      --sub: #475569;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --primary-2: #4f46e5;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #f59e0b;
+      --shadow-lg: 0 28px 70px rgba(15,23,42,0.14);
+      --shadow-md: 0 18px 40px rgba(15,23,42,0.10);
+      --radius-2xl: 28px;
+      --radius-xl: 22px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --max: 1220px;
+    }
+    @media (prefers-color-scheme: dark) {
       :root {
-        --bg-color: #f3f4f6;
-        --bg-gradient: radial-gradient(circle at top left, #e0f2fe 0, #f3f4f6 35%, #e5e7eb 100%);
-        --card-bg: rgba(255, 255, 255, 0.82);
-        --card-border: rgba(148, 163, 184, 0.45);
-        --card-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
-        --radius-xl: 26px;
-        --radius-lg: 18px;
-        --radius-md: 12px;
-
-        --text-main: #0f172a;
-        --text-sub: #6b7280;
-        --text-muted: #9ca3af;
-
-        --primary: #2563eb;
-        --primary-soft: rgba(37, 99, 235, 0.12);
-        --primary-border: rgba(37, 99, 235, 0.4);
-        --danger: #ef4444;
-
-        --input-bg: rgba(255, 255, 255, 0.98);
-        --input-border: rgba(148, 163, 184, 0.7);
-        --input-focus-ring: rgba(59, 130, 246, 0.55);
+        --bg: #020617;
+        --bg-2: #0b1120;
+        --surface: rgba(15,23,42,0.80);
+        --surface-strong: rgba(15,23,42,0.92);
+        --surface-soft: rgba(30,41,59,0.56);
+        --border: rgba(71,85,105,0.38);
+        --border-strong: rgba(100,116,139,0.48);
+        --text: #e2e8f0;
+        --sub: #cbd5e1;
+        --muted: #94a3b8;
+        --shadow-lg: 0 34px 80px rgba(2,6,23,0.55);
+        --shadow-md: 0 18px 42px rgba(2,6,23,0.42);
       }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(59,130,246,0.20), transparent 28%),
+        radial-gradient(circle at 100% 10%, rgba(79,70,229,0.16), transparent 24%),
+        radial-gradient(circle at 50% 100%, rgba(14,165,233,0.10), transparent 30%),
+        linear-gradient(180deg, var(--bg), var(--bg-2));
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      padding: 16px;
+    }
+    button, input, select { font: inherit; }
+    .page { max-width: var(--max); margin: 0 auto; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding: 10px 4px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-mark {
+      width: 40px; height: 40px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(37,99,235,1), rgba(79,70,229,1));
+      box-shadow: 0 16px 30px rgba(37,99,235,0.24);
+      position: relative; overflow: hidden; flex: 0 0 auto;
+    }
+    .brand-mark::before {
+      content: ""; position: absolute; inset: 1px; border-radius: 13px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.30), rgba(255,255,255,0.02));
+    }
+    .brand-name { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; }
+    .brand-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg-color: #020617;
-          --bg-gradient: radial-gradient(circle at top left, #0f172a 0, #020617 40%, #020617 100%);
-          --card-bg: rgba(15, 23, 42, 0.88);
-          --card-border: rgba(51, 65, 85, 0.9);
-          --card-shadow: 0 22px 60px rgba(15, 23, 42, 0.9);
+    .panel {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(18px) saturate(145%);
+      -webkit-backdrop-filter: blur(18px) saturate(145%);
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 42px); letter-spacing: -0.05em; }
+    .hero p { margin: 0; color: var(--sub); font-size: 14px; line-height: 1.8; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 12px; border-radius: 999px;
+      border: 1px solid rgba(37,99,235,0.16); background: rgba(37,99,235,0.10);
+      color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .stats { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-top: 18px; }
+    .stat {
+      padding: 16px; border-radius: 20px; background: rgba(255,255,255,0.46); border: 1px solid var(--border);
+      box-shadow: var(--shadow-md);
+    }
+    .stat-label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .stat-value { font-size: 24px; font-weight: 800; letter-spacing: -0.04em; }
 
-          --text-main: #e5e7eb;
-          --text-sub: #9ca3af;
-          --text-muted: #6b7280;
+    .btn {
+      min-height: 44px; padding: 0 16px; border-radius: 14px; border: none; cursor: pointer;
+      font-size: 14px; font-weight: 800;
+    }
+    .btn-primary { color: #fff; background: linear-gradient(90deg, var(--primary), var(--primary-2)); box-shadow: 0 16px 30px rgba(37,99,235,0.24); }
+    .btn-ghost { color: var(--text); background: rgba(148,163,184,0.10); border: 1px solid var(--border); }
+    .btn-danger { color: var(--danger); background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.18); }
+    .btn:disabled { opacity: .6; cursor: default; box-shadow: none; }
 
-          --input-bg: rgba(15, 23, 42, 0.96);
-          --input-border: rgba(75, 85, 99, 0.9);
-        }
-      }
+    .filters {
+      display: grid; gap: 14px;
+    }
+    .toolbar-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      padding: 14px; border-radius: 18px; border: 1px solid var(--border); background: rgba(255,255,255,0.38);
+    }
+    .tool-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .tool-label { color: var(--sub); font-size: 13px; font-weight: 700; }
+    select, input[type="number"], input[type="text"] {
+      min-height: 42px; padding: 0 13px; border-radius: 14px; border: 1px solid var(--border-strong);
+      background: rgba(255,255,255,0.88); color: var(--text); outline: none;
+    }
+    input[type="text"] { min-width: 260px; }
+    input[type="number"] { width: 96px; }
+    select:focus, input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(59,130,246,0.14); }
 
-      * { box-sizing: border-box; }
+    .type-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+    .type-tab {
+      min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.55); color: var(--sub); cursor: pointer; font-size: 13px; font-weight: 800;
+    }
+    .type-tab.active { color: #fff; background: linear-gradient(90deg, var(--primary), var(--primary-2)); box-shadow: 0 12px 24px rgba(37,99,235,0.22); }
 
-      body {
-        margin: 0;
-        padding: 0;
-        min-height: 100vh;
-        background: var(--bg-gradient), var(--bg-color);
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-        color: var(--text-main);
-        -webkit-font-smoothing: antialiased;
-      }
+    .list-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .section-title { margin: 0; font-size: 18px; letter-spacing: -0.03em; }
+    .section-sub { color: var(--muted); font-size: 13px; }
+    .status-line { color: var(--muted); font-size: 13px; }
 
-      .page {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 26px 18px 36px;
-      }
+    .cards { display: grid; gap: 12px; }
+    .item-card {
+      border: 1px solid var(--border); border-radius: 20px; background: var(--surface-strong);
+      padding: 16px; box-shadow: var(--shadow-md);
+    }
+    .item-top { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .item-key { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; word-break: break-all; }
+    .item-meta { color: var(--muted); font-size: 12px; margin-top: 6px; line-height: 1.7; }
+    .pill {
+      display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 0 10px; border-radius: 999px;
+      font-size: 12px; font-weight: 800; white-space: nowrap; border: 1px solid transparent;
+    }
+    .pill-url { color: #1d4ed8; background: rgba(37,99,235,0.10); border-color: rgba(37,99,235,0.18); }
+    .pill-text { color: #7c3aed; background: rgba(124,58,237,0.10); border-color: rgba(124,58,237,0.18); }
+    .pill-file { color: #15803d; background: rgba(22,163,74,0.10); border-color: rgba(22,163,74,0.18); }
+    .item-body {
+      padding: 14px; border-radius: 16px; border: 1px solid var(--border); background: rgba(148,163,184,0.08);
+      color: var(--text); font-size: 14px; line-height: 1.75; word-break: break-word;
+    }
+    .item-title { font-weight: 800; margin-bottom: 8px; }
+    .item-body a { color: var(--primary); text-decoration: none; }
+    .item-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .empty {
+      text-align: center; color: var(--sub); padding: 30px 14px; border-radius: 20px; border: 1px dashed var(--border-strong);
+      background: rgba(255,255,255,0.26);
+    }
 
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding-left: 4px;
-        margin-bottom: 18px;
-        user-select: none;
-      }
-
-      .brand-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        background: radial-gradient(circle at 30% 20%, #38bdf8 0, #2563eb 35%, #4f46e5 100%);
-        box-shadow: 0 0 18px rgba(56, 189, 248, 0.8);
-      }
-
-      .brand-title {
-        font-size: 13px;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--text-muted);
-      }
-
-      .card {
-        background: var(--card-bg);
-        border: 1px solid var(--card-border);
-        border-radius: var(--radius-xl);
-        box-shadow: var(--card-shadow);
-        backdrop-filter: blur(20px) saturate(140%);
-        -webkit-backdrop-filter: blur(20px) saturate(140%);
-        padding: 26px 22px 22px;
-        margin-bottom: 20px;
-      }
-
-      .card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 12px;
-      }
-
-      h2 {
-        margin: 0;
-        font-size: 22px;
-        letter-spacing: 0.02em;
-      }
-
-      .subtitle {
-        margin: 4px 0 0;
-        color: var(--text-sub);
-        font-size: 13px;
-      }
-
-      .section-title {
-        margin: 0 0 12px;
-        font-size: 16px;
-        font-weight: 600;
-      }
-
-      .badge {
-        font-size: 11px;
-        padding: 4px 10px;
-        border-radius: 999px;
-        background: var(--primary-soft);
-        color: #1d4ed8;
-        border: 1px solid rgba(129, 140, 248, 0.35);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        white-space: nowrap;
-      }
-
-      .btn {
-        padding: 10px 14px;
-        border-radius: 12px;
-        border: none;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 600;
-        transition: transform 0.16s ease, box-shadow 0.18s ease, filter 0.16s ease;
-      }
-
-      .btn-primary {
-        background-image: linear-gradient(90deg, #2563eb, #4f46e5);
-        color: #fff;
-        box-shadow: 0 12px 26px rgba(37, 99, 235, 0.35);
-      }
-
-      .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.03); }
-      .btn-primary:active { transform: translateY(0); box-shadow: 0 8px 18px rgba(30,64,175,0.5); }
-
-      .btn-ghost {
-        background: rgba(255,255,255,0.6);
-        color: var(--text-main);
-        border: 1px solid var(--card-border);
-      }
-
-      .btn-red {
-        background: rgba(248, 113, 113, 0.14);
-        color: var(--danger);
-        border: 1px solid rgba(248, 113, 113, 0.35);
-      }
-
-      .toolbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-top: 10px;
-        padding: 12px;
-        border-radius: var(--radius-lg);
-        border: 1px solid rgba(148,163,184,0.22);
-        background: rgba(255,255,255,0.35);
-      }
-
-      .tool-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-
-      .tool-label {
-        font-size: 13px;
-        color: var(--text-sub);
-        user-select: none;
-      }
-
-      select,
-      input[type="number"],
-      input[type="text"] {
-        padding: 9px 10px;
-        border-radius: 12px;
-        border: 1px solid var(--card-border);
-        background: rgba(255,255,255,0.78);
-        color: var(--text-main);
-        outline: none;
-      }
-
-      input[type="number"] {
-        width: 110px;
-      }
-
-      input[type="text"] {
-        width: 260px;
-      }
-
-      .pager-info {
-        font-size: 13px;
-        color: var(--text-sub);
-        white-space: nowrap;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-      }
-
-      thead th {
-        text-align: left;
-        padding: 12px;
-        font-size: 13px;
-        color: var(--text-sub);
-        letter-spacing: 0.01em;
-        border-bottom: 1px solid var(--card-border);
-      }
-
-      tbody td {
-        padding: 14px 12px;
-        border-bottom: 1px solid rgba(148,163,184,0.25);
-        word-break: break-all;
-      }
-
-      .empty {
-        text-align: center;
-        color: var(--text-sub);
-        padding: 18px 0;
-      }
-
-      @media (max-width: 720px) {
-        thead { display: none; }
-        tbody tr { display: block; margin-bottom: 14px; border: 1px solid var(--card-border); border-radius: 14px; background: rgba(255,255,255,0.78); }
-        tbody td { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid rgba(148,163,184,0.18); }
-        tbody td:last-child { border-bottom: none; }
-        tbody td::before { content: attr(data-label); font-size: 12px; color: var(--text-sub); }
-      }
-    </style>
+    @media (min-width: 920px) {
+      body { padding: 24px; }
+      .hero { grid-template-columns: 1.1fr 0.9fr; align-items: stretch; }
+      .stats { grid-template-columns: repeat(2, minmax(0,1fr)); align-content: start; }
+    }
+    @media (max-width: 720px) {
+      body { padding: 12px; }
+      .panel { padding: 18px; border-radius: 22px; }
+      .topbar { margin-bottom: 14px; }
+      .brand-mark { width: 36px; height: 36px; border-radius: 12px; }
+      .brand-mark::before { border-radius: 11px; }
+      .brand-name { font-size: 17px; }
+      .toolbar-row { padding: 12px; }
+      input[type="text"] { min-width: 0; width: 100%; }
+      .tool-group { width: 100%; }
+      .top-actions { width: 100%; }
+      .top-actions .btn { flex: 1; }
+      .type-tabs { gap: 8px; }
+      .type-tab { flex: 1 1 calc(50% - 8px); }
+      .item-top { flex-direction: column; }
+      .item-actions .btn { flex: 1; }
+    }
+  </style>
 </head>
 <body>
   <div class="page">
-    <header class="brand">
-      <div class="brand-dot"></div>
-      <span class="brand-title">SHORT URL SERVICE</span>
-    </header>
-
-    <section class="card">
-      <div class="card-header">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
         <div>
-          <h2>短链接管理后台</h2>
-          <p class="subtitle">管理分享内容：查看后缀、类型、内容与创建时间（精确到秒）。删除链接项时会同时清理哈希索引。</p>
+          <div class="brand-name">CFLink</div>
+          <div class="brand-sub">Admin Panel</div>
         </div>
-        <span class="badge">ADMIN PANEL</span>
       </div>
-
-      <div style="margin-top: 16px; display: flex; gap: 10px; justify-content: flex-end;">
+      <div class="top-actions">
         <button class="btn btn-ghost" onclick="reload()">刷新数据</button>
         <button class="btn btn-ghost" onclick="logout()">退出登录</button>
       </div>
+    </header>
+
+    <section class="panel hero">
+      <div>
+        <div class="eyebrow">Manage Share Content</div>
+        <h1>统一管理链接、文本和文件</h1>
+        <p>这版后台和首页统一为同一套产品风格，同时补上按内容类型分类浏览。你可以按链接 / 文本 / 文件筛选、搜索、排序、分页，并直接打开或删除条目。</p>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">当前筛选</div>
+          <div class="stat-value" id="statType">全部</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">当前结果数</div>
+          <div class="stat-value" id="statTotal">0</div>
+        </div>
+      </div>
     </section>
 
-    <section class="card">
-      <h3 class="section-title">链接列表</h3>
+    <section class="panel filters">
+      <div class="toolbar-row">
+        <div>
+          <h2 class="section-title">内容列表</h2>
+          <div class="section-sub">支持类型筛选、关键词搜索、创建时间排序和分页跳转。</div>
+        </div>
+        <div class="status-line" id="pageInfo">第 1 / 1 页</div>
+      </div>
 
-      <div class="toolbar">
+      <div class="toolbar-row">
+        <div class="tool-group">
+          <span class="tool-label">分类</span>
+          <div class="type-tabs">
+            <button class="type-tab active" data-type="all" onclick="setType('all', this)">全部</button>
+            <button class="type-tab" data-type="url" onclick="setType('url', this)">链接</button>
+            <button class="type-tab" data-type="text" onclick="setType('text', this)">文本</button>
+            <button class="type-tab" data-type="file" onclick="setType('file', this)">文件</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar-row">
         <div class="tool-group">
           <span class="tool-label">排序</span>
           <select id="sortSelect" onchange="onSortChange()">
             <option value="name">按后缀（A → Z）</option>
             <option value="time">按创建时间（新 → 旧）</option>
           </select>
-          <span class="pager-info" id="totalInfo"></span>
         </div>
-
-        <div class="tool-group tool-search">
+        <div class="tool-group">
           <span class="tool-label">搜索</span>
-          <input id="searchInput" type="text" placeholder="搜索后缀或长链接" onkeydown="onSearchKey(event)" />
+          <input id="searchInput" type="text" placeholder="搜索后缀、标题、链接或文本内容" onkeydown="onSearchKey(event)" />
           <button class="btn btn-ghost" onclick="applySearch()">搜索</button>
           <button class="btn btn-ghost" onclick="clearSearch()">清除</button>
         </div>
-
         <div class="tool-group" style="justify-content:flex-end;">
           <button class="btn btn-ghost" onclick="prevPage()">上一页</button>
           <button class="btn btn-ghost" onclick="nextPage()">下一页</button>
-          <span class="pager-info" id="pageInfo"></span>
           <input id="jumpInput" type="number" min="1" placeholder="页码" />
           <button class="btn btn-primary" onclick="jumpPage()">跳转</button>
         </div>
       </div>
 
-      <div id="linkContent" style="margin-top: 4px;"></div>
+      <div id="linkContent"></div>
     </section>
   </div>
 
   <script>
-    // 后台入口路径是可变的（由 Worker 环境变量控制），因此 API 路径使用当前页面路径推导：
     let base = location.pathname || "";
     while (base.length > 1 && base.endsWith("/")) base = base.slice(0, -1);
     const apiBase = base + "/api";
@@ -444,14 +443,14 @@ export const htmlAdmin = `<!DOCTYPE html>
       size: 10,
       sort: 'name',
       q: '',
+      type: 'all',
       total: 0,
       totalPages: 1,
       loading: false,
     };
 
     function escapeHtml(input) {
-      const s = String(input ?? '');
-      return s
+      return String(input ?? '')
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')
@@ -463,96 +462,105 @@ export const htmlAdmin = `<!DOCTYPE html>
       return String(n).padStart(2, '0');
     }
 
-    // 本地时间格式：YYYY-MM-DD HH:mm:ss
-    // 如果 createdAt 缺失/非法，默认显示 1970（epoch=0）
     function formatTime(createdAtMs) {
       const ms = Number.isFinite(createdAtMs) ? createdAtMs : 0;
-      // 兼容：未存储创建时间时统一显示 1970-01-01 00:00:00
       if (ms === 0) return '1970-01-01 00:00:00';
       const d = new Date(ms);
       return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate())
         + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
     }
 
-    function setPagerInfo() {
+    function formatBytes(size) {
+      const value = Number(size) || 0;
+      if (value < 1024) return value + ' B';
+      if (value < 1024 * 1024) return (value / 1024).toFixed(1) + ' KB';
+      if (value < 1024 * 1024 * 1024) return (value / (1024 * 1024)).toFixed(1) + ' MB';
+      return (value / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+    }
+
+    function typeLabel(type) {
+      return type === 'url' ? '链接' : (type === 'text' ? '文本' : (type === 'file' ? '文件' : '全部'));
+    }
+
+    function typeClass(type) {
+      return type === 'url' ? 'pill-url' : (type === 'text' ? 'pill-text' : 'pill-file');
+    }
+
+    function setSummary() {
       const pageInfo = document.getElementById('pageInfo');
-      const totalInfo = document.getElementById('totalInfo');
-      if (pageInfo) pageInfo.textContent = '第 ' + state.page + ' / ' + state.totalPages + ' 页';
-      if (totalInfo) totalInfo.textContent = '共 ' + state.total + ' 条';
+      const statType = document.getElementById('statType');
+      const statTotal = document.getElementById('statTotal');
+      if (pageInfo) pageInfo.textContent = '第 ' + state.page + ' / ' + state.totalPages + ' 页 · 共 ' + state.total + ' 条';
+      if (statType) statType.textContent = typeLabel(state.type);
+      if (statTotal) statTotal.textContent = String(state.total);
     }
 
     function renderEmpty(msg) {
-      document.getElementById('linkContent').innerHTML = '<div class="empty">' + (msg || '暂无数据') + '</div>';
-      setPagerInfo();
+      document.getElementById('linkContent').innerHTML = '<div class="empty">' + escapeHtml(msg || '暂无数据') + '</div>';
+      setSummary();
     }
 
-    function renderTable(items) {
-      let html = '';
-      html += '<table>';
-      html += '<thead><tr>'
-        + '<th style="width:16%">后缀</th>'
-        + '<th style="width:10%">类型</th>'
-        + '<th>内容</th>'
-        + '<th style="width:20%">创建时间</th>'
-        + '<th style="width:12%">操作</th>'
-        + '</tr></thead>';
-      html += '<tbody>';
+    function buildPreview(item) {
+      const title = String(item.title || '');
+      const value = String(item.value || '');
+      if (item.type === 'url') {
+        return '<div class="item-body"><a href="' + escapeHtml(value) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(value) + '</a></div>';
+      }
+      if (item.type === 'file') {
+        const name = escapeHtml(item.filename || value || 'download');
+        const meta = [item.contentType || 'application/octet-stream', formatBytes(item.size || 0)].join(' · ');
+        const titleHtml = title ? '<div class="item-title">' + escapeHtml(title) + '</div>' : '';
+        return '<div class="item-body">'
+          + titleHtml
+          + '<div><a href="/' + encodeURIComponent(item.name) + '" target="_blank" rel="noopener noreferrer">' + name + '</a></div>'
+          + '<div style="margin-top:8px;color:var(--muted);font-size:13px;">' + escapeHtml(meta) + '</div>'
+          + '</div>';
+      }
+      const text = value.length > 220 ? value.slice(0, 220) + '…' : value;
+      const titleHtml = title ? '<div class="item-title">' + escapeHtml(title) + '</div>' : '';
+      return '<div class="item-body">' + titleHtml + (text ? escapeHtml(text).replaceAll('\n', '<br>') : '<span style="color:var(--muted);">（空）</span>') + '</div>';
+    }
 
-      items.forEach(item => {
-        const name = escapeHtml(item.name);
-        const type = item.type === 'text' ? '文本' : (item.type === 'file' ? '文件' : '链接');
-        const title = String(item.title || '');
-        const content = String(item.value || '');
-        const fileMeta = item.type === 'file'
-          ? ('文件名：' + content + (item.size ? '｜大小：' + item.size + ' B' : ''))
-          : '';
-        const previewSource = item.type === 'file'
-          ? (title ? title + '｜' + fileMeta : fileMeta)
-          : (item.type === 'text' && title ? (title + '｜' + content) : content);
-        const preview = escapeHtml(previewSource.length > 120 ? previewSource.slice(0, 120) + '…' : previewSource);
-        const created = formatTime(Number(item.createdAt));
-
-        html += '<tr>'
-          + '<td data-label="后缀"><strong>/' + name + '</strong></td>'
-          + '<td data-label="类型">' + type + '</td>'
-          + '<td data-label="内容">'
-          +   (item.type === 'text'
-                ? (preview ? '<span>' + preview.split(String.fromCharCode(10)).join('<br>') + '</span>' : '<span style="color: var(--text-muted);">（空）</span>')
-                : item.type === 'file'
-                  ? (preview ? '<a href="/' + name + '" target="_blank" rel="noopener noreferrer">' + preview + '</a>' : '<span style="color: var(--text-muted);">（空）</span>')
-                  : (preview
-                      ? '<a href="' + escapeHtml(content) + '" target="_blank" rel="noopener noreferrer">' + preview + '</a>'
-                      : '<span style="color: var(--text-muted);">（空）</span>'))
-          + '</td>'
-          + '<td data-label="创建时间">' + escapeHtml(created) + '</td>'
-          + '<td data-label="操作">'
-          +   '<button class="btn btn-red" data-key="' + name + '" onclick="delLink(this.dataset.key, this)">删除</button>'
-          + '</td>'
-          + '</tr>';
-      });
-
-      html += '</tbody></table>';
-      document.getElementById('linkContent').innerHTML = html;
-      setPagerInfo();
+    function renderCards(items) {
+      const html = items.map(item => {
+        const key = escapeHtml(item.name);
+        const created = escapeHtml(formatTime(Number(item.createdAt)));
+        const type = typeLabel(item.type);
+        const openHref = '/' + encodeURIComponent(item.name);
+        return '<article class="item-card">'
+          + '<div class="item-top">'
+          +   '<div>'
+          +     '<div class="item-key">/' + key + '</div>'
+          +     '<div class="item-meta">创建时间：' + created + '</div>'
+          +   '</div>'
+          +   '<span class="pill ' + typeClass(item.type) + '">' + type + '</span>'
+          + '</div>'
+          + buildPreview(item)
+          + '<div class="item-actions">'
+          +   '<a class="btn btn-ghost" href="' + openHref + '" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;text-decoration:none;">打开</a>'
+          +   '<button class="btn btn-danger" data-key="' + key + '" onclick="delLink(this.dataset.key, this)">删除</button>'
+          + '</div>'
+          + '</article>';
+      }).join('');
+      document.getElementById('linkContent').innerHTML = '<div class="cards">' + html + '</div>';
+      setSummary();
     }
 
     async function loadPage(page) {
       if (state.loading) return;
       state.loading = true;
-
       const p = Math.max(1, Math.floor(Number(page) || 1));
       renderEmpty('加载中...');
 
       const sortSelect = document.getElementById('sortSelect');
-      if (sortSelect && sortSelect.value !== state.sort) {
-        sortSelect.value = state.sort;
-      }
+      if (sortSelect && sortSelect.value !== state.sort) sortSelect.value = state.sort;
 
       try {
         const qs = new URLSearchParams({
           page: String(p),
           size: String(state.size),
           sort: state.sort,
+          type: state.type,
         });
         if (state.q) qs.set('q', String(state.q));
 
@@ -564,16 +572,23 @@ export const htmlAdmin = `<!DOCTYPE html>
           location.href = base;
           return;
         }
-        if (!res.ok) { alert('加载失败'); renderEmpty(); return; }
+        if (!res.ok) {
+          renderEmpty('加载失败');
+          return;
+        }
 
         const data = await res.json();
         state.page = Number(data.page) || p;
         state.total = Number(data.total) || 0;
         state.totalPages = Math.max(1, Number(data.totalPages) || 1);
+        state.type = data.type || state.type;
 
         const items = Array.isArray(data.links) ? data.links : [];
-        if (!items.length) { renderEmpty(); return; }
-        renderTable(items);
+        if (!items.length) {
+          renderEmpty(state.q ? '没有匹配结果' : '当前分类下暂无内容');
+          return;
+        }
+        renderCards(items);
       } catch (e) {
         renderEmpty('加载失败');
       } finally {
@@ -581,22 +596,25 @@ export const htmlAdmin = `<!DOCTYPE html>
       }
     }
 
-    function reload() {
-      loadPage(state.page);
-    }
+    function reload() { loadPage(state.page); }
 
     function onSortChange() {
       const sel = document.getElementById('sortSelect');
-      const v = sel ? sel.value : 'name';
-      state.sort = (v === 'time') ? 'time' : 'name';
+      state.sort = sel && sel.value === 'time' ? 'time' : 'name';
       state.page = 1;
+      loadPage(1);
+    }
+
+    function setType(type, btn) {
+      state.type = type === 'url' || type === 'text' || type === 'file' ? type : 'all';
+      state.page = 1;
+      document.querySelectorAll('.type-tab').forEach(el => el.classList.toggle('active', el === btn));
       loadPage(1);
     }
 
     function normalizeSearchQuery(raw) {
       let q = String(raw ?? '').trim();
       if (!q) return '';
-      // 允许直接粘贴短链（同域名）进行搜索：例如 https://xxx.com/abc
       try {
         if (q.includes('://')) {
           const u = new URL(q);
@@ -628,10 +646,8 @@ export const htmlAdmin = `<!DOCTYPE html>
     }
 
     function onSearchKey(ev) {
-      if (!ev) return;
-      if (ev.key === 'Enter') applySearch();
+      if (ev && ev.key === 'Enter') applySearch();
     }
-
 
     function prevPage() {
       if (state.page <= 1) return;
@@ -653,12 +669,10 @@ export const htmlAdmin = `<!DOCTYPE html>
     async function delLink(name, btn) {
       if (!name) return;
       if (!confirm('确定删除 /' + name + ' 吗？')) return;
-
       if (btn) {
         btn.disabled = true;
         btn.textContent = '删除中...';
       }
-
       try {
         const res = await fetch(apiBase + '/delete/' + encodeURIComponent(name), {
           credentials: 'same-origin',
@@ -676,8 +690,6 @@ export const htmlAdmin = `<!DOCTYPE html>
           }
           return;
         }
-
-        // 删除后刷新当前页（每页仅 10 条，刷新很快，且能保持分页与排序正确）
         loadPage(state.page);
       } catch (e) {
         alert('请求失败，请稍后重试。');
@@ -690,15 +702,11 @@ export const htmlAdmin = `<!DOCTYPE html>
 
     async function logout() {
       try {
-        await fetch(base + '/logout', {
-          method: 'POST',
-          credentials: 'same-origin'
-        });
+        await fetch(base + '/logout', { method: 'POST', credentials: 'same-origin' });
       } catch (e) {}
       location.href = base;
     }
 
-    // 回车直接跳转
     const jumpInput = document.getElementById('jumpInput');
     if (jumpInput) {
       jumpInput.addEventListener('keydown', function (e) {

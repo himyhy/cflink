@@ -352,12 +352,14 @@ async function handleRequest(request) {
     const pageRaw = Number(url.searchParams.get("page") || "1");
     const sizeRaw = Number(url.searchParams.get("size") || "10");
     const sortRaw = String(url.searchParams.get("sort") || "name").toLowerCase();
+    const typeRaw = String(url.searchParams.get("type") || "all").toLowerCase();
     const qRaw0 = String(url.searchParams.get("q") || "").trim();
     const qRaw = qRaw0.replace(/^\/+/, "");
     const q = qRaw.toLowerCase();
 
     const size = Math.min(10, Math.max(1, Math.floor(Number.isFinite(sizeRaw) ? sizeRaw : 10)));
     const sort = sortRaw === "time" ? "time" : "name";
+    const filterType = typeRaw === "url" || typeRaw === "text" || typeRaw === "file" ? typeRaw : "all";
 
     const index = await buildAdminIndex();
     const items = [];
@@ -372,13 +374,15 @@ async function handleRequest(request) {
       const parsed = parseStoredValue(raw);
       const value = String(parsed?.value || "");
       const title = String(parsed?.title || "");
+      const itemType = parsed?.type || 'url';
+      if (filterType !== 'all' && itemType !== filterType) continue;
       const haystack = (it.name + "\n" + value + "\n" + title).toLowerCase();
       if (q && !haystack.includes(q)) continue;
       items.push({
         name: it.name,
         value,
         title,
-        type: parsed?.type || 'url',
+        type: itemType,
         filename: parsed?.filename || '',
         contentType: parsed?.contentType || '',
         size: parsed?.size || 0,
@@ -408,7 +412,7 @@ async function handleRequest(request) {
     const links = items.slice(start, start + size);
 
     return new Response(
-      JSON.stringify({ page, size, sort, q: qRaw, total, totalPages, links }),
+      JSON.stringify({ page, size, sort, type: filterType, q: qRaw, total, totalPages, links }),
       { headers: jsonHeaders }
     );
   }

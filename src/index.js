@@ -1,7 +1,6 @@
 import { marked } from "marked";
 import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
-import katex from "katex";
 // ==================== 基础配置 ====================
 // 后台密码优先使用环境变量 ADMIN_PASS；若未配置则回退到默认占位值
 const DEFAULT_ADMIN_PASS = "change-this-password";
@@ -15,9 +14,7 @@ marked.use(markedHighlight({
 }));
 
 function renderMathInHtml(input) {
-  let output = String(input || '');
-  output = output.replace(/\\\((.+?)\\\)/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: false, output: "html" }));
-  return output;
+  return String(input || '');
 }
 
 function extractFootnotes(text) {
@@ -50,7 +47,7 @@ function replaceBlockMathWithPlaceholders(text) {
 
   function pushBlock(expr) {
     const id = blocks.length;
-    blocks.push(katex.renderToString(String(expr || '').trim(), { throwOnError: false, displayMode: true, output: "html" }));
+    blocks.push('<div class="math-block" data-math-block="' + id + '">\\[' + escapeHtmlServer(String(expr || '').trim()) + '\\]</div>');
     return '\n\n@@BLOCK_MATH_' + id + '@@\n\n';
   }
 
@@ -90,7 +87,8 @@ function renderFootnotesSection(defs) {
   if (!defs.size) return '';
   const items = [];
   for (const [label, raw] of defs.entries()) {
-    const rendered = enhanceRenderedHtml(sanitizeRenderedHtml(renderMathInHtml(marked.parse(String(raw || ''), { gfm: true, breaks: true }))));
+    let footnoteSource = String(raw || '').replace(/\\\((.+?)\\\)/g, (_, expr) => '<span class="math-inline">\\(' + escapeHtmlServer(expr.trim()) + '\\)</span>');
+    const rendered = enhanceRenderedHtml(sanitizeRenderedHtml(marked.parse(footnoteSource, { gfm: true, breaks: true })));
     items.push('<li id="fn-' + encodeURIComponent(label) + '">' + rendered + ' <a class="footnote-backref" href="#fnref-' + encodeURIComponent(label) + '">↩</a></li>');
   }
   return '<section class="footnotes"><hr><ol>' + items.join('') + '</ol></section>';
@@ -99,7 +97,8 @@ function renderFootnotesSection(defs) {
 function renderRichMarkdown(text) {
   const { content: withoutDefs, defs } = extractFootnotes(text);
   const { content: withMathPlaceholders, blocks } = replaceBlockMathWithPlaceholders(withoutDefs);
-  const source = String(withMathPlaceholders || '').replace(/\[\^([^\]\n]+)\]/g, (_, label) => '<sup><a id="fnref-' + encodeURIComponent(label) + '" href="#fn-' + encodeURIComponent(label) + '">[' + label + ']</a></sup>');
+  let source = String(withMathPlaceholders || '').replace(/\[\^([^\]\n]+)\]/g, (_, label) => '<sup><a id="fnref-' + encodeURIComponent(label) + '" href="#fn-' + encodeURIComponent(label) + '">[' + label + ']</a></sup>');
+  source = source.replace(/\\\((.+?)\\\)/g, (_, expr) => '<span class="math-inline">\\(' + escapeHtmlServer(expr.trim()) + '\\)</span>');
   const rawHtml = marked.parse(source, {
     gfm: true,
     breaks: true,
@@ -131,7 +130,6 @@ function renderTextPage(content, key, title) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>${safeTitle || (safeKey ? safeKey + " - 文本页" : "文本页")}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.37/dist/katex.min.css">
   <style>
     :root {
       color-scheme: light dark;
@@ -185,15 +183,7 @@ function renderTextPage(content, key, title) {
     .content code { padding: 2px 6px; border-radius: 8px; background: rgba(148,163,184,0.18); font-family: ui-monospace, SFMono-Regular, monospace; font-size: .92em; }
     .content .math-block { overflow-x: auto; overflow-y: hidden; padding: 6px 0; margin: 0 0 14px; }
     .content .math-inline { display: inline-block; vertical-align: middle; max-width: 100%; }
-    .content .math-block .katex,
-    .content .math-inline .katex { font-size: 1.05em; }
-    .content .math-block .katex-html,
-    .content .math-inline .katex-html { display: inline-block; max-width: 100%; }
-
-    .content .katex .katex-html {
-      position: relative;
-      display: inline-block;
-    }
+    .content mjx-container { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
     .content .code-block { margin: 0 0 14px; border-radius: 14px; overflow: hidden; background: rgba(15,23,42,0.96); color: #e5e7eb; }
     .content .code-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 12px; color: #94a3b8; }
     .content .code-copy-btn { border:none; border-radius: 10px; padding: 7px 10px; cursor:pointer; font-size: 12px; font-weight: 700; color: #fff; background: linear-gradient(90deg,#2563eb,#4f46e5); }
@@ -230,6 +220,14 @@ function renderTextPage(content, key, title) {
     </article>
   </div>
   <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+
     async function copyCode(btn) {
       try {
         const code = decodeURIComponent(btn.dataset.code || "");
@@ -260,6 +258,7 @@ function renderTextPage(content, key, title) {
       }
     }
   </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </body>
 </html>`;
 }

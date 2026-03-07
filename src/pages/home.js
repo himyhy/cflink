@@ -392,7 +392,7 @@ export const htmlIndex = `<!DOCTYPE html>
     }
 
     .suffix-shell {
-      width: 100%;
+      display: block;
       padding: 0;
       border: none;
       background: transparent;
@@ -405,18 +405,21 @@ export const htmlIndex = `<!DOCTYPE html>
 
     .suffix-input {
       width: 100%;
-      border: 1px solid var(--border-strong);
-      background: rgba(255,255,255,0.86);
+      border: 1px solid rgba(148,163,184,0.45);
+      background: rgba(255,255,255,0.92);
       color: var(--text);
-      outline: none;
-      border-radius: var(--radius-lg);
-      padding: 13px 14px;
+      border-radius: var(--radius-md);
+      padding: 12px 13px;
       font-size: 14px;
+      outline: none;
+      font-family: inherit;
+      transition: .16s border-color ease, .16s box-shadow ease, .16s transform ease;
     }
 
     .suffix-input:focus {
-      border-color: rgba(37,99,235,0.75);
-      box-shadow: 0 0 0 4px rgba(59,130,246,0.14);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
+      transform: translateY(-0.5px);
     }
 
     .file-shell {

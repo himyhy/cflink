@@ -23,23 +23,36 @@ function extractMathPlaceholders(text) {
 
   function push(expr, displayMode) {
     const id = math.length;
-    const open = displayMode ? '\\[' : '\\(';
-    const close = displayMode ? '\\]' : '\\)';
-    math.push(open + String(expr || '').trim() + close);
-    return '@@MATH_' + id + '@@';
+    math.push({ expr: String(expr || '').trim(), displayMode });
+    return displayMode ? '\n\n@@MATH_BLOCK_' + id + '@@\n\n' : '@@MATH_INLINE_' + id + '@@';
   }
 
-  content = content.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => '\n\n' + push(expr, true) + '\n\n');
-  content = content.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => '\n\n' + push(expr, true) + '\n\n');
-  content = content.replace(/(^|\n)((?:\\begin\{[^}]+\}[\s\S]+?\\end\{[^}]+\}))(?:\n|$)/g, (_, prefix, expr) => (prefix || '') + '\n\n' + push(expr, true) + '\n\n');
+  content = content.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => push(expr, true));
+  content = content.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => push(expr, true));
+  content = content.replace(/(^|\n)((?:\\begin\{[^}]+\}[\s\S]+?\\end\{[^}]+\}))(?:\n|$)/g, (_, prefix, expr) => (prefix || '') + push(expr, true));
   content = content.replace(/\\\((.+?)\\\)/g, (_, expr) => push(expr, false));
   return { content, math };
 }
 
 function restoreMathPlaceholders(html, math) {
-  return String(html || '').replace(/@@MATH_(\d+)@@/g, (_, id) => math[Number(id)] || '');
+  let out = String(html || '');
+  out = out.replace(/<p>@@MATH_BLOCK_(\d+)@@<\/p>/g, (_, id) => {
+    const item = math[Number(id)];
+    if (!item) return '';
+    return '<div class="math-block">\\[' + escapeHtmlServer(item.expr) + '\\]</div>';
+  });
+  out = out.replace(/@@MATH_BLOCK_(\d+)@@/g, (_, id) => {
+    const item = math[Number(id)];
+    if (!item) return '';
+    return '<div class="math-block">\\[' + escapeHtmlServer(item.expr) + '\\]</div>';
+  });
+  out = out.replace(/@@MATH_INLINE_(\d+)@@/g, (_, id) => {
+    const item = math[Number(id)];
+    if (!item) return '';
+    return '<span class="math-inline">\\(' + escapeHtmlServer(item.expr) + '\\)</span>';
+  });
+  return out;
 }
-
 function extractFootnotes(text) {
   const lines = String(text || '').split(/\r?\n/);
   const defs = new Map();

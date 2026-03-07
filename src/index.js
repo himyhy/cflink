@@ -1,12 +1,10 @@
 import { marked } from "marked";
 import { markedHighlight } from "marked-highlight";
-import markedFootnote from "marked-footnote";
 import hljs from "highlight.js";
 import katex from "katex";
 // ==================== 基础配置 ====================
 // 后台密码优先使用环境变量 ADMIN_PASS；若未配置则回退到默认占位值
 const DEFAULT_ADMIN_PASS = "change-this-password";
-marked.use(markedFootnote());
 marked.use(markedHighlight({
   emptyLangClass: 'hljs',
   langPrefix: 'hljs language-',
@@ -18,11 +16,48 @@ marked.use(markedHighlight({
 
 function renderMathInHtml(input) {
   let output = String(input || '');
-  output = output.replace(/<p>\s*\$\$([\s\S]+?)\$\$\s*<\/p>/g, (_, expr) => katex.renderToString(expr.replace(/<br\s*\/?>(\s*)/gi, '\n').trim(), { throwOnError: false, displayMode: true }));
-  output = output.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: true }));
-  output = output.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => katex.renderToString(String(expr || '').replace(/<br\s*\/?>(\s*)/gi, '\n').trim(), { throwOnError: false, displayMode: true }));
   output = output.replace(/\\\((.+?)\\\)/g, (_, expr) => katex.renderToString(expr.trim(), { throwOnError: false, displayMode: false }));
   return output;
+}
+
+function extractFootnotes(text) {
+  const lines = String(text || '').split(/\r?\n/);
+  const defs = new Map();
+  const kept = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(/^\[\^([^\]\n]+)\]:(?:\s*)(.*)$/);
+    if (!match) {
+      kept.push(line);
+      continue;
+    }
+    const label = match[1];
+    let body = match[2] || '';
+    while (i + 1 < lines.length && (/^( {2,}|\t)/.test(lines[i + 1]) || lines[i + 1] === '')) {
+      i++;
+      body += '\n' + lines[i].replace(/^( {2,}|\t)/, '');
+    }
+    defs.set(label, body.trim());
+  }
+
+  return { content: kept.join('\n'), defs };
+}
+
+function replaceBlockMathWithPlaceholders(text) {
+  const blocks = [];
+  let content = String(text || '');
+  content = content.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => {
+    const id = blocks.length;
+    blocks.push(katex.renderToString(String(expr || '').trim(), { throwOnError: false, displayMode: true }));
+    return '\n\n@@BLOCK_MATH_' + id + '@@\n\n';
+  });
+  content = content.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => {
+    const id = blocks.length;
+    blocks.push(katex.renderToString(String(expr || '').trim(), { throwOnError: false, displayMode: true }));
+    return '\n\n@@BLOCK_MATH_' + id + '@@\n\n';
+  });
+  return { content, blocks };
 }
 
 function sanitizeRenderedHtml(html) {
@@ -51,16 +86,30 @@ function enhanceRenderedHtml(html) {
   });
 }
 
+function renderFootnotesSection(defs) {
+  if (!defs.size) return '';
+  const items = [];
+  for (const [label, raw] of defs.entries()) {
+    const rendered = enhanceRenderedHtml(sanitizeRenderedHtml(renderMathInHtml(marked.parse(String(raw || ''), { gfm: true, breaks: true }))));
+    items.push('<li id="fn-' + encodeURIComponent(label) + '">' + rendered + ' <a class="footnote-backref" href="#fnref-' + encodeURIComponent(label) + '">↩</a></li>');
+  }
+  return '<section class="footnotes"><hr><ol>' + items.join('') + '</ol></section>';
+}
+
 function renderRichMarkdown(text) {
-  const rawHtml = marked.parse(String(text || ''), {
+  const { content: withoutDefs, defs } = extractFootnotes(text);
+  const { content: withMathPlaceholders, blocks } = replaceBlockMathWithPlaceholders(withoutDefs);
+  const source = String(withMathPlaceholders || '').replace(/\[\^([^\]\n]+)\]/g, (_, label) => '<sup><a id="fnref-' + encodeURIComponent(label) + '" href="#fn-' + encodeURIComponent(label) + '">[' + label + ']</a></sup>');
+  const rawHtml = marked.parse(source, {
     gfm: true,
     breaks: true,
   });
-  const mathHtml = renderMathInHtml(rawHtml);
+  let mathHtml = renderMathInHtml(rawHtml);
+  mathHtml = mathHtml.replace(/<p>@@BLOCK_MATH_(\d+)@@<\/p>/g, (_, id) => blocks[Number(id)] || '');
+  mathHtml = mathHtml.replace(/@@BLOCK_MATH_(\d+)@@/g, (_, id) => blocks[Number(id)] || '');
   const safeHtml = sanitizeRenderedHtml(mathHtml);
-  return enhanceRenderedHtml(safeHtml);
+  return enhanceRenderedHtml(safeHtml) + renderFootnotesSection(defs);
 }
-
 
 function escapeHtmlServer(input) {
   return String(input ?? "")

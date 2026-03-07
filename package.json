@@ -7,13 +7,17 @@
     "label": "CFLink",
     "products": [
       "Workers",
-      "KV"
+      "KV",
+      "R2"
     ],
     "categories": [],
     "publish": true,
     "bindings": {
       "LINKS": {
         "description": "KV namespace used to store shortlink mappings and indexes."
+      },
+      "FILES": {
+        "description": "R2 bucket binding used to store uploaded files. Default bucket name: `cflink-files`."
       },
       "ADMIN_PATH": {
         "description": "Admin panel path. Default: `/admin`"

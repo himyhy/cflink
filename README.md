@@ -1,8 +1,8 @@
 # CFLink
 
-一个基于 `Cloudflare Workers + KV` 的轻量级短链接服务，支持：
+一个基于 `Cloudflare Workers + KV + R2` 的轻量级分享服务，支持：
 
-- 首页创建分享链接（支持跳转链接 / 文本页）
+- 首页创建分享链接（支持跳转链接 / 文本页 / 文件上传）
 - 后台管理分享内容（基于 Cookie 登录态）
 - 自定义后台入口路径
 - 长链接域名黑名单
@@ -26,18 +26,22 @@
    - 这是 `KV Namespace` 绑定
    - 按 Cloudflare 页面提示创建或选择即可
 
-2. `ADMIN_PATH`
+2. `FILES`
+   - 这是 `R2 Bucket` 绑定
+   - 默认桶名可用：`cflink-files`
+
+3. `ADMIN_PATH`
    - 建议填：`/admin`
 
-3. `ADMIN_PASS`
+4. `ADMIN_PASS`
    - 建议直接改成你自己的后台密码
    - 默认值是：`change-this-password`
 
-4. `LONG_DOMAIN_BLACKLIST`
+5. `LONG_DOMAIN_BLACKLIST`
    - 默认值：`placeholder.invalid`
    - 这是占位值，效果等同于不启用黑名单
 
-5. `SUFFIX_BLACKLIST`
+6. `SUFFIX_BLACKLIST`
    - 默认值可用：`admin,login,api`
    - 不需要也可以留空
 
@@ -49,16 +53,17 @@
 ## 功能说明
 
 ### 首页
-- 用户可直接创建两种分享内容：
+- 用户可直接创建三种分享内容：
   - 长链接跳转短链
   - 文本内容分享页（支持标题、复制、基础 Markdown）
+  - 文件上传分享（R2 存储，支持预览与下载）
 - 支持随机后缀
 - 支持自定义后缀
 
 ### 后台
 - 查看所有分享内容
 - 搜索、分页、排序
-- 区分链接 / 文本类型
+- 区分链接 / 文本 / 文件类型
 - 文本内容支持标题与基础 Markdown 预览
 - 后台列表优先兼容旧链接数据与新文本数据
 - 删除分享内容
@@ -76,13 +81,14 @@
 
 ## Cloudflare 配置
 
-### KV 绑定
+### KV / R2 绑定
 
-代码里使用的 KV 绑定名是：
+代码里使用的绑定名是：
 
-- `LINKS`
+- `LINKS`（KV）
+- `FILES`（R2）
 
-请确保部署时绑定名保持为 `LINKS`。
+请确保部署时绑定名分别保持为 `LINKS` 与 `FILES`。
 
 ### 环境变量
 
@@ -110,6 +116,7 @@
 
 - `src/index.js`
   - 当前主版本 / 推荐部署版本
+  - 包含链接、文本、文件三种分享模式
 
 - `wrangler.jsonc`
   - Cloudflare Worker 配置

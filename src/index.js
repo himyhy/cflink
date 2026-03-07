@@ -121,9 +121,72 @@ function parseStoredValue(raw) {
       if (parsed.type === "text" && typeof parsed.text === "string") {
         return { type: "text", value: parsed.text, title: typeof parsed.title === "string" ? parsed.title : "", raw };
       }
+      if (parsed.type === "file" && typeof parsed.objectKey === "string") {
+        return {
+          type: "file",
+          value: typeof parsed.filename === "string" ? parsed.filename : parsed.objectKey,
+          title: typeof parsed.title === "string" ? parsed.title : "",
+          objectKey: parsed.objectKey,
+          filename: typeof parsed.filename === "string" ? parsed.filename : parsed.objectKey,
+          contentType: typeof parsed.contentType === "string" ? parsed.contentType : "application/octet-stream",
+          size: Number.isFinite(Number(parsed.size)) ? Number(parsed.size) : 0,
+          raw,
+        };
+      }
     }
   } catch (e) {}
   return { type: "text", value: raw, title: "", raw };
+}
+
+function isPreviewableContentType(contentType) {
+  const t = String(contentType || '').toLowerCase();
+  return t.startsWith('image/') || t.startsWith('text/') || t === 'application/pdf' || t.startsWith('audio/') || t.startsWith('video/');
+}
+
+function formatBytes(size) {
+  const value = Number(size) || 0;
+  if (value < 1024) return value + ' B';
+  if (value < 1024 * 1024) return (value / 1024).toFixed(1) + ' KB';
+  if (value < 1024 * 1024 * 1024) return (value / (1024 * 1024)).toFixed(1) + ' MB';
+  return (value / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+}
+
+function renderFilePage(file, key) {
+  const safeKey = escapeHtmlServer(key || '');
+  const safeTitle = escapeHtmlServer(file?.title || file?.filename || '文件分享');
+  const safeFilename = escapeHtmlServer(file?.filename || 'download');
+  const safeType = escapeHtmlServer(file?.contentType || 'application/octet-stream');
+  const previewUrl = '/' + encodeURIComponent(key || '') + '/raw';
+  const downloadUrl = '/' + encodeURIComponent(key || '') + '/download';
+  let preview = '<p style="color:#64748b;">该文件类型暂不支持在线预览，请直接下载。</p>';
+  if (String(file?.contentType || '').toLowerCase().startsWith('image/')) {
+    preview = '<img src="' + previewUrl + '" alt="' + safeFilename + '" style="max-width:100%;border-radius:16px;display:block;">';
+  } else if (String(file?.contentType || '').toLowerCase() === 'application/pdf') {
+    preview = '<iframe src="' + previewUrl + '" style="width:100%;height:72vh;border:none;border-radius:16px;background:#fff;"></iframe>';
+  } else if (String(file?.contentType || '').toLowerCase().startsWith('audio/')) {
+    preview = '<audio controls style="width:100%;" src="' + previewUrl + '"></audio>';
+  } else if (String(file?.contentType || '').toLowerCase().startsWith('video/')) {
+    preview = '<video controls style="width:100%;border-radius:16px;background:#000;" src="' + previewUrl + '"></video>';
+  } else if (String(file?.contentType || '').toLowerCase().startsWith('text/')) {
+    preview = '<iframe src="' + previewUrl + '" style="width:100%;height:72vh;border:none;border-radius:16px;background:#fff;"></iframe>';
+  }
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>${safeTitle}</title>
+  <style>
+    body{margin:0;padding:24px 16px;background:#f3f4f6;color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+    .wrap{max-width:960px;margin:0 auto}.card{background:#fff;border:1px solid rgba(148,163,184,.35);border-radius:24px;padding:24px 20px;box-shadow:0 18px 40px rgba(15,23,42,.08)}
+    .meta{color:#64748b;font-size:14px;line-height:1.7}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.btn{display:inline-block;padding:10px 14px;border-radius:12px;text-decoration:none;color:#fff;background:linear-gradient(90deg,#2563eb,#4f46e5)}
+    .btn.secondary{background:linear-gradient(90deg,#16a34a,#22c55e)}
+  </style>
+</head>
+<body>
+  <div class="wrap"><article class="card"><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#64748b;">FILE SHARE</div><h1 style="margin:10px 0 8px;">${safeTitle}</h1><p class="meta">链接标识：/${safeKey || '-'}<br>文件名：${safeFilename}<br>MIME：${safeType}<br>大小：${escapeHtmlServer(formatBytes(file?.size || 0))}</p><div class="actions"><a class="btn" href="${previewUrl}" target="_blank" rel="noopener noreferrer">打开原文件</a><a class="btn secondary" href="${downloadUrl}">下载文件</a></div>${preview}</article></div>
+</body>
+</html>`;
 }
 
 function renderInlineMarkdown(text) {
@@ -693,10 +756,15 @@ const htmlAdmin = `<!DOCTYPE html>
 
       items.forEach(item => {
         const name = escapeHtml(item.name);
-        const type = item.type === 'text' ? '文本' : '链接';
+        const type = item.type === 'text' ? '文本' : (item.type === 'file' ? '文件' : '链接');
         const title = String(item.title || '');
         const content = String(item.value || '');
-        const previewSource = item.type === 'text' && title ? (title + '｜' + content) : content;
+        const fileMeta = item.type === 'file'
+          ? ('文件名：' + content + (item.size ? '｜大小：' + item.size + ' B' : ''))
+          : '';
+        const previewSource = item.type === 'file'
+          ? (title ? title + '｜' + fileMeta : fileMeta)
+          : (item.type === 'text' && title ? (title + '｜' + content) : content);
         const preview = escapeHtml(previewSource.length > 120 ? previewSource.slice(0, 120) + '…' : previewSource);
         const created = formatTime(Number(item.createdAt));
 
@@ -706,9 +774,11 @@ const htmlAdmin = `<!DOCTYPE html>
           + '<td data-label="内容">'
           +   (item.type === 'text'
                 ? (preview ? '<span>' + preview.split(String.fromCharCode(10)).join('<br>') + '</span>' : '<span style="color: var(--text-muted);">（空）</span>')
-                : (preview
-                    ? '<a href="' + escapeHtml(content) + '" target="_blank" rel="noopener noreferrer">' + preview + '</a>'
-                    : '<span style="color: var(--text-muted);">（空）</span>'))
+                : item.type === 'file'
+                  ? (preview ? '<a href="/' + name + '" target="_blank" rel="noopener noreferrer">' + preview + '</a>' : '<span style="color: var(--text-muted);">（空）</span>')
+                  : (preview
+                      ? '<a href="' + escapeHtml(content) + '" target="_blank" rel="noopener noreferrer">' + preview + '</a>'
+                      : '<span style="color: var(--text-muted);">（空）</span>'))
           + '</td>'
           + '<td data-label="创建时间">' + escapeHtml(created) + '</td>'
           + '<td data-label="操作">'
@@ -1296,6 +1366,7 @@ const htmlIndex = `<!DOCTYPE html>
             <div class="mode-switch">
               <button id="modeUrlBtn" class="mode-btn active" type="button" onclick="setMode('url')">链接</button>
               <button id="modeTextBtn" class="mode-btn" type="button" onclick="setMode('text')">文本</button>
+              <button id="modeFileBtn" class="mode-btn" type="button" onclick="setMode('file')">文件</button>
             </div>
           </div>
 
@@ -1322,6 +1393,18 @@ const htmlIndex = `<!DOCTYPE html>
               id="t"
               placeholder="支持基础 Markdown：标题、列表、粗体、斜体、行内代码、链接。"
             ></textarea>
+          </div>
+
+          <div class="field" id="fileField" style="display:none;">
+            <label for="ft">文件标题（可选）</label>
+            <input
+              type="text"
+              id="ft"
+              placeholder="例如：安装包 / 海报 / 使用文档"
+              autocomplete="off"
+            />
+            <label for="f">选择文件</label>
+            <input type="file" id="f" />
           </div>
 
           <div class="inline-row">
@@ -1359,18 +1442,24 @@ const htmlIndex = `<!DOCTYPE html>
       mode = nextMode === 'text' ? 'text' : 'url';
       const urlField = document.getElementById('urlField');
       const textField = document.getElementById('textField');
+      const fileField = document.getElementById('fileField');
       const urlBtn = document.getElementById('modeUrlBtn');
       const textBtn = document.getElementById('modeTextBtn');
+      const fileBtn = document.getElementById('modeFileBtn');
       if (urlField) urlField.style.display = mode === 'url' ? 'block' : 'none';
       if (textField) textField.style.display = mode === 'text' ? 'block' : 'none';
+      if (fileField) fileField.style.display = mode === 'file' ? 'block' : 'none';
       if (urlBtn) urlBtn.classList.toggle('active', mode === 'url');
       if (textBtn) textBtn.classList.toggle('active', mode === 'text');
+      if (fileBtn) fileBtn.classList.toggle('active', mode === 'file');
     }
 
     async function s() {
       const u = document.getElementById('u').value.trim();
       const t = document.getElementById('t').value.trim();
       const tt = document.getElementById('tt').value.trim();
+      const ft = document.getElementById('ft').value.trim();
+      const file = document.getElementById('f').files[0];
       const k = document.getElementById('k').value.trim();
 
       if (mode === 'url') {
@@ -1378,8 +1467,13 @@ const htmlIndex = `<!DOCTYPE html>
           alert('请输入以 http 或 https 开头的完整链接。');
           return;
         }
-      } else if (!t) {
-        alert('请输入要分享的文本内容。');
+      } else if (mode === 'text') {
+        if (!t) {
+          alert('请输入要分享的文本内容。');
+          return;
+        }
+      } else if (!file) {
+        alert('请选择要上传的文件。');
         return;
       }
 
@@ -1387,9 +1481,19 @@ const htmlIndex = `<!DOCTYPE html>
       if (btn) btn.disabled = true;
 
       try {
+        const body = mode === 'file'
+          ? (() => {
+              const form = new FormData();
+              form.set('type', mode);
+              form.set('title', ft);
+              form.set('key', k);
+              form.set('file', file);
+              return form;
+            })()
+          : JSON.stringify({ type: mode, url: u, text: t, title: tt, key: k });
         const res = await fetch('/', {
           method: 'POST',
-          body: JSON.stringify({ type: mode, url: u, text: t, title: tt, key: k })
+          body
         });
         const d = await res.json();
 
@@ -1716,6 +1820,9 @@ async function handleRequest(request) {
         value,
         title,
         type: parsed?.type || 'url',
+        filename: parsed?.filename || '',
+        contentType: parsed?.contentType || '',
+        size: parsed?.size || 0,
         createdAt: it.createdAt || 0,
       });
     }
@@ -1762,6 +1869,8 @@ async function handleRequest(request) {
     if (parsedValue?.type === 'url' && parsedValue.value) {
       const hash = await sha512(parsedValue.value);
       await Promise.all([LINKS.delete(hash), LINKS.delete(keyDel)]);
+    } else if (parsedValue?.type === 'file' && parsedValue.objectKey) {
+      await Promise.all([FILES.delete(parsedValue.objectKey), LINKS.delete(keyDel)]);
     } else {
       await LINKS.delete(keyDel);
     }
@@ -1772,16 +1881,19 @@ async function handleRequest(request) {
     return new Response("OK", { headers: { "cache-control": "no-store" } });
   }
 
-  // 生成短链 / 文本页（全部永久）
+  // 生成短链 / 文本页 / 文件分享（全部永久）
   if (request.method === "POST") {
-    const req = await request.json();
+    const contentType = request.headers.get('content-type') || '';
+    const isMultipart = contentType.includes('multipart/form-data');
+    const req = isMultipart ? null : await request.json();
+    const form = isMultipart ? await request.formData() : null;
 
     const ERR_SUFFIX_TAKEN = "该后缀已被占用";
     const ERR_DOMAIN_BLOCKED = "此长链接域名无法使用";
-    const type = req?.type === "text" ? "text" : "url";
-    const reqUrl = typeof req.url === "string" ? req.url.trim() : "";
-    const reqText = typeof req.text === "string" ? req.text.trim() : "";
-    const reqTitle = typeof req.title === "string" ? req.title.trim() : "";
+    const type = isMultipart ? String(form?.get('type') || 'file').trim() : (req?.type === "text" ? "text" : "url");
+    const reqUrl = typeof req?.url === "string" ? req.url.trim() : "";
+    const reqText = typeof req?.text === "string" ? req.text.trim() : "";
+    const reqTitle = isMultipart ? String(form?.get('title') || '').trim() : (typeof req?.title === "string" ? req.title.trim() : "");
 
     if (type === "url" && !reqUrl) {
       return new Response(JSON.stringify({ error: "链接不能为空" }), {
@@ -1792,6 +1904,14 @@ async function handleRequest(request) {
 
     if (type === "text" && !reqText) {
       return new Response(JSON.stringify({ error: "文本内容不能为空" }), {
+        status: 400,
+        headers: jsonHeaders,
+      });
+    }
+
+    const uploadFile = isMultipart ? form?.get('file') : null;
+    if (type === "file" && !(uploadFile instanceof File)) {
+      return new Response(JSON.stringify({ error: "请选择要上传的文件" }), {
         status: 400,
         headers: jsonHeaders,
       });
@@ -1824,7 +1944,7 @@ async function handleRequest(request) {
       }
     }
 
-    const customKey = typeof req.key === "string" ? req.key.trim() : "";
+    const customKey = isMultipart ? String(form?.get('key') || '').trim() : (typeof req.key === "string" ? req.key.trim() : "");
     if (customKey && isSuffixBlocked(customKey, suffixBlacklist)) {
       return new Response(JSON.stringify({ error: ERR_SUFFIX_TAKEN }), {
         status: 409,
@@ -1865,8 +1985,27 @@ async function handleRequest(request) {
         if (!customKey) await LINKS.put(hash, key);
         invalidateAdminListCache();
       }
-    } else {
+    } else if (type === "text") {
       await LINKS.put(key, encodeStoredValue({ type: "text", title: reqTitle, text: reqText }), { metadata: { createdAt: Date.now() } });
+      invalidateAdminListCache();
+    } else {
+      const file = uploadFile;
+      const fileExt = file.name && file.name.includes('.') ? '.' + file.name.split('.').pop() : '';
+      const objectKey = 'uploads/' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) + fileExt;
+      await FILES.put(objectKey, await file.arrayBuffer(), {
+        httpMetadata: {
+          contentType: file.type || 'application/octet-stream',
+          contentDisposition: 'inline; filename="' + encodeURIComponent(file.name || 'download') + '"',
+        },
+      });
+      await LINKS.put(key, encodeStoredValue({
+        type: 'file',
+        title: reqTitle,
+        objectKey,
+        filename: file.name || 'download',
+        contentType: file.type || 'application/octet-stream',
+        size: file.size || 0,
+      }), { metadata: { createdAt: Date.now() } });
       invalidateAdminListCache();
     }
 
@@ -1883,6 +2022,27 @@ async function handleRequest(request) {
     return Response.redirect("https://403.lily.lat/" + url.search, 302);
   }
 
+  const fileMatch = pathname.match(/^\/([^/]+)\/(raw|download)$/);
+  if (fileMatch) {
+    const shareKey = decodeURIComponent(fileMatch[1] || '');
+    const action = fileMatch[2];
+    const raw = await LINKS.get(shareKey);
+    const parsed = parseStoredValue(raw);
+    if (parsed?.type === 'file' && parsed.objectKey) {
+      const obj = await FILES.get(parsed.objectKey);
+      if (!obj) {
+        return Response.redirect("https://404.lily.lat/" + url.search, 302);
+      }
+      const headers = new Headers();
+      obj.writeHttpMetadata(headers);
+      headers.set('etag', obj.httpEtag);
+      headers.set('cache-control', 'public, max-age=3600');
+      headers.set('content-type', parsed.contentType || obj.httpMetadata?.contentType || 'application/octet-stream');
+      headers.set('content-disposition', (action === 'download' ? 'attachment' : 'inline') + '; filename*=UTF-8\'\'' + encodeURIComponent(parsed.filename || 'download'));
+      return new Response(obj.body, { headers });
+    }
+  }
+
   const targetRaw = await LINKS.get(path);
   const target = parseStoredValue(targetRaw);
   if (target?.type === 'url' && target.value) {
@@ -1890,6 +2050,9 @@ async function handleRequest(request) {
   }
   if (target?.type === 'text') {
     return new Response(renderTextPage(target.value, path, target.title), { headers: htmlHeaders });
+  }
+  if (target?.type === 'file') {
+    return new Response(renderFilePage(target, path), { headers: htmlHeaders });
   }
 
   // 未创建的后缀：跳转到统一 404 页面

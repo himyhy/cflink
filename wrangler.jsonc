@@ -15,6 +15,12 @@
       "binding": "LINKS"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "cflink-files"
+    }
+  ],
   "vars": {
     "ADMIN_PATH": "/admin",
     "ADMIN_PASS": "change-this-password",

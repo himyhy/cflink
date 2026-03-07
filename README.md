@@ -34,7 +34,8 @@
    - 默认值是：`change-this-password`
 
 4. `LONG_DOMAIN_BLACKLIST`
-   - 不需要就留空
+   - 默认值：`placeholder.invalid`
+   - 这是占位值，效果等同于不启用黑名单
 
 5. `SUFFIX_BLACKLIST`
    - 默认值可用：`admin,login,api`
@@ -90,7 +91,8 @@
 
 - `LONG_DOMAIN_BLACKLIST`
   - 长链接域名黑名单
-  - 可留空
+  - 默认值：`placeholder.invalid`
+  - 这是给 Cloudflare 必填表单用的占位值，效果等同于不启用黑名单
 
 - `SUFFIX_BLACKLIST`
   - 自定义后缀黑名单

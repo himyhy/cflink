@@ -392,27 +392,31 @@ export const htmlIndex = `<!DOCTYPE html>
     }
 
     .suffix-shell {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 0 14px;
+      width: 100%;
+      padding: 0;
+      border: none;
+      background: transparent;
+      box-shadow: none;
     }
 
     .suffix-prefix {
-      color: var(--muted);
-      font-size: 13px;
-      white-space: nowrap;
+      display: none;
     }
 
     .suffix-input {
-      border: none;
-      background: transparent;
+      width: 100%;
+      border: 1px solid var(--border-strong);
+      background: rgba(255,255,255,0.86);
       color: var(--text);
       outline: none;
-      min-width: 0;
-      width: 100%;
-      padding: 13px 0;
+      border-radius: var(--radius-lg);
+      padding: 13px 14px;
       font-size: 14px;
+    }
+
+    .suffix-input:focus {
+      border-color: rgba(37,99,235,0.75);
+      box-shadow: 0 0 0 4px rgba(59,130,246,0.14);
     }
 
     .file-shell {
@@ -745,7 +749,7 @@ export const htmlIndex = `<!DOCTYPE html>
             <div id="textField" class="field-group">
               <div class="field">
                 <label for="tt">文本页标题（可选）</label>
-                <input class="input" type="text" id="tt" placeholder="例如：临时公告 / 使用说明 / 今日笔记" autocomplete="off" />
+                <input class="input" type="text" id="tt" placeholder="例如：公告 / 说明 / 笔记" autocomplete="off" />
               </div>
               <div class="field">
                 <label for="t">文本内容</label>
@@ -780,7 +784,7 @@ export const htmlIndex = `<!DOCTYPE html>
                 <label for="k">自定义后缀（可选）</label>
                 <div class="input suffix-shell">
                   <span class="suffix-prefix" id="suffixPrefix">当前域名 /</span>
-                  <input class="suffix-input" type="text" id="k" placeholder="good / notes-2026 / setup" autocomplete="off" />
+                  <input class="suffix-input" type="text" id="k" placeholder="例如：公告 / 说明 / 笔记" autocomplete="off" />
                 </div>
                 <div class="hint">建议使用字母、数字、短横线；系统保留后缀不可用。</div>
               </div>
@@ -885,12 +889,6 @@ export const htmlIndex = `<!DOCTYPE html>
       if (linkEl) linkEl.textContent = link;
       if (descEl) descEl.textContent = description || '现在可以复制或直接打开。';
       if (resBox) resBox.classList.add('show');
-    }
-
-    function updateSuffixPrefix() {
-      const prefix = document.getElementById('suffixPrefix');
-      if (!prefix) return;
-      prefix.textContent = window.location.host + ' /';
     }
 
     function updateFileState() {
@@ -1048,7 +1046,6 @@ export const htmlIndex = `<!DOCTYPE html>
       window.open(lastLink, '_blank', 'noopener,noreferrer');
     }
 
-    updateSuffixPrefix();
     setMode('url');
     const fileInput = document.getElementById('f');
     if (fileInput) fileInput.addEventListener('change', updateFileState);

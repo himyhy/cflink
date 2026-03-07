@@ -183,6 +183,19 @@ function renderTextPage(content, key, title) {
     .content del { color: var(--sub); }
     .content code { padding: 2px 6px; border-radius: 8px; background: rgba(148,163,184,0.18); font-family: ui-monospace, SFMono-Regular, monospace; font-size: .92em; }
     .content .katex-display { overflow-x: auto; overflow-y: hidden; padding: 6px 0; }
+    .content .katex { position: relative; }
+    .content .katex .katex-mathml {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
     .content .code-block { margin: 0 0 14px; border-radius: 14px; overflow: hidden; background: rgba(15,23,42,0.96); color: #e5e7eb; }
     .content .code-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 12px; color: #94a3b8; }
     .content .code-copy-btn { border:none; border-radius: 10px; padding: 7px 10px; cursor:pointer; font-size: 12px; font-weight: 700; color: #fff; background: linear-gradient(90deg,#2563eb,#4f46e5); }

@@ -958,7 +958,8 @@ export const htmlIndex = `<!DOCTYPE html>
       resetResult();
 
       if (mode === 'url') {
-        if (!u || !/^https?:\/\//i.test(u)) {
+        const lowerUrl = u.toLowerCase();
+        if (!u || !(lowerUrl.startsWith('http://') || lowerUrl.startsWith('https://'))) {
           setStatus('error', '请输入以 http 或 https 开头的完整链接。');
           return;
         }

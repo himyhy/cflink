@@ -13,6 +13,7 @@ export const htmlLogin = `<!DOCTYPE html>
     h1{margin:16px 0 8px;font-size:30px;letter-spacing:-.04em}p{margin:0 0 18px;color:var(--sub);font-size:14px;line-height:1.7}label{display:block;margin-bottom:8px;font-size:13px;font-weight:700;color:var(--sub)}
     input{width:100%;padding:13px 14px;border-radius:16px;border:1px solid rgba(148,163,184,.4);background:rgba(255,255,255,.9);color:inherit;outline:none;font-size:14px}input:focus{border-color:var(--primary);box-shadow:0 0 0 4px rgba(59,130,246,.14)}
     button{width:100%;margin-top:14px;min-height:48px;border:none;border-radius:16px;color:#fff;cursor:pointer;font-size:15px;font-weight:800;background:linear-gradient(90deg,var(--primary),var(--primary2));box-shadow:0 16px 30px rgba(37,99,235,.24)}
+    .back-link{display:flex;align-items:center;justify-content:center;width:100%;margin-top:10px;min-height:46px;border-radius:16px;border:1px solid var(--border);background:rgba(148,163,184,.08);color:var(--text);font-size:14px;font-weight:700;text-decoration:none}
     .error{min-height:20px;margin-top:12px;color:var(--danger);font-size:13px}
   </style>
 </head>
@@ -24,6 +25,7 @@ export const htmlLogin = `<!DOCTYPE html>
     <label for="pass">管理员密码</label>
     <input id="pass" type="password" placeholder="请输入后台密码" autocomplete="current-password" />
     <button id="loginBtn" type="button" onclick="login()">登录</button>
+    <a class="back-link" href="/">返回首页</a>
     <div id="error" class="error"></div>
   </main>
   <script>

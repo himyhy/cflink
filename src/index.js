@@ -1439,7 +1439,7 @@ const htmlIndex = `<!DOCTYPE html>
     let mode = 'url';
 
     function setMode(nextMode) {
-      mode = nextMode === 'text' ? 'text' : 'url';
+      mode = nextMode === 'file' ? 'file' : (nextMode === 'text' ? 'text' : 'url');
       const urlField = document.getElementById('urlField');
       const textField = document.getElementById('textField');
       const fileField = document.getElementById('fileField');

@@ -1,6 +1,17 @@
+import { renderRichMarkdown } from "../renderers/markdown.js";
+
+function escapeHtmlLocal(input) {
+  return String(input ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 export function renderTextPage(content, key, title) {
-  const safeKey = escapeHtmlServer(key || "");
-  const safeTitle = escapeHtmlServer(title || "");
+  const safeKey = escapeHtmlLocal(key || "");
+  const safeTitle = escapeHtmlLocal(title || "");
   const renderedContent = renderRichMarkdown(content);
   const copyTextJson = JSON.stringify(String(content || ""));
   return `<!DOCTYPE html>

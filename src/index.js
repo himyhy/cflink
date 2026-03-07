@@ -191,6 +191,129 @@ function renderBasicMarkdown(text) {
 }
 
 // ==================== 1. 后台管理页面模板 ====================
+const htmlLogin = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>后台登录</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <style>
+    :root {
+      --bg-color: #f3f4f6;
+      --bg-gradient: radial-gradient(circle at top left, #e0f2fe 0, #f3f4f6 35%, #e5e7eb 100%);
+      --card-bg: rgba(255,255,255,0.84);
+      --card-border: rgba(148,163,184,0.45);
+      --card-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+      --text-main: #0f172a;
+      --text-sub: #6b7280;
+      --primary: #2563eb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #020617;
+        --bg-gradient: radial-gradient(circle at top left, #0f172a 0, #020617 40%, #020617 100%);
+        --card-bg: rgba(15,23,42,0.88);
+        --card-border: rgba(51,65,85,0.9);
+        --card-shadow: 0 22px 60px rgba(15,23,42,0.9);
+        --text-main: #e5e7eb;
+        --text-sub: #94a3b8;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: var(--bg-gradient), var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      border-radius: 24px;
+      padding: 26px 22px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--card-shadow);
+      backdrop-filter: blur(20px) saturate(140%);
+      -webkit-backdrop-filter: blur(20px) saturate(140%);
+    }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    p { margin: 0 0 16px; color: var(--text-sub); font-size: 14px; line-height: 1.6; }
+    label { display: block; font-size: 13px; margin-bottom: 8px; color: var(--text-sub); }
+    input {
+      width: 100%;
+      padding: 12px 13px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.45);
+      background: rgba(255,255,255,0.9);
+      color: inherit;
+      outline: none;
+      font-size: 14px;
+    }
+    button {
+      width: 100%;
+      margin-top: 14px;
+      padding: 12px 14px;
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 700;
+      background: linear-gradient(90deg,#2563eb,#4f46e5);
+    }
+    .error { min-height: 20px; margin-top: 12px; color: #dc2626; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>后台登录</h1>
+    <p>输入管理员密码后进入后台。登录成功后会写入安全会话 Cookie。</p>
+    <label for="pass">管理员密码</label>
+    <input id="pass" type="password" placeholder="请输入后台密码" autocomplete="current-password" />
+    <button id="loginBtn" type="button" onclick="login()">登录</button>
+    <div id="error" class="error"></div>
+  </main>
+  <script>
+    async function login() {
+      const pass = document.getElementById('pass').value;
+      const btn = document.getElementById('loginBtn');
+      const error = document.getElementById('error');
+      if (error) error.textContent = '';
+      if (!pass) {
+        if (error) error.textContent = '请输入密码';
+        return;
+      }
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch(location.pathname + '/login', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ password: pass })
+        });
+        if (!res.ok) {
+          if (error) error.textContent = '密码错误';
+          return;
+        }
+        location.href = location.pathname;
+      } catch (e) {
+        if (error) error.textContent = '登录失败，请稍后重试。';
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+    document.getElementById('pass').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') login();
+    });
+  </script>
+</body>
+</html>`;
+
 const htmlAdmin = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -466,6 +589,7 @@ const htmlAdmin = `<!DOCTYPE html>
 
       <div style="margin-top: 16px; display: flex; gap: 10px; justify-content: flex-end;">
         <button class="btn btn-ghost" onclick="reload()">刷新数据</button>
+        <button class="btn btn-ghost" onclick="logout()">退出登录</button>
       </div>
     </section>
 
@@ -503,8 +627,6 @@ const htmlAdmin = `<!DOCTYPE html>
   </div>
 
   <script>
-    const pass = prompt("请输入管理密码");
-
     // 后台入口路径是可变的（由 Worker 环境变量控制），因此 API 路径使用当前页面路径推导：
     let base = location.pathname || "";
     while (base.length > 1 && base.endsWith("/")) base = base.slice(0, -1);
@@ -619,10 +741,14 @@ const htmlAdmin = `<!DOCTYPE html>
         if (state.q) qs.set('q', String(state.q));
 
         const res = await fetch(apiBase + '/all?' + qs.toString(), {
-          headers: { 'Authorization': pass },
+          credentials: 'same-origin',
           cache: 'no-store'
         });
-        if (!res.ok) { alert('鉴权失败'); renderEmpty(); return; }
+        if (res.status === 401) {
+          location.href = base;
+          return;
+        }
+        if (!res.ok) { alert('加载失败'); renderEmpty(); return; }
 
         const data = await res.json();
         state.page = Number(data.page) || p;
@@ -719,9 +845,13 @@ const htmlAdmin = `<!DOCTYPE html>
 
       try {
         const res = await fetch(apiBase + '/delete/' + encodeURIComponent(name), {
-          headers: { 'Authorization': pass },
+          credentials: 'same-origin',
           cache: 'no-store'
         });
+        if (res.status === 401) {
+          location.href = base;
+          return;
+        }
         if (!res.ok) {
           alert('删除失败');
           if (btn) {
@@ -740,6 +870,16 @@ const htmlAdmin = `<!DOCTYPE html>
           btn.textContent = '删除';
         }
       }
+    }
+
+    async function logout() {
+      try {
+        await fetch(base + '/logout', {
+          method: 'POST',
+          credentials: 'same-origin'
+        });
+      } catch (e) {}
+      location.href = base;
     }
 
     // 回车直接跳转
@@ -1295,6 +1435,45 @@ async function sha512(url) {
     .join("");
 }
 
+function parseCookieHeader(cookieHeader) {
+  const out = {};
+  for (const part of String(cookieHeader || '').split(/;\s*/)) {
+    if (!part) continue;
+    const idx = part.indexOf('=');
+    if (idx <= 0) continue;
+    const key = part.slice(0, idx).trim();
+    const value = part.slice(idx + 1).trim();
+    out[key] = value;
+  }
+  return out;
+}
+
+async function createAdminSessionToken(adminPass) {
+  return sha512('cflink-admin-session|' + String(adminPass || ''));
+}
+
+function buildSessionCookie(token) {
+  return [
+    'cflink_admin_session=' + token,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Secure',
+    'Max-Age=2592000'
+  ].join('; ');
+}
+
+function buildLogoutCookie() {
+  return [
+    'cflink_admin_session=',
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Secure',
+    'Max-Age=0'
+  ].join('; ');
+}
+
 // ==================== 3.1 管理后台列表缓存 & 创建时间辅助 ====================
 // 说明：
 // - 创建时间存储在短链接 key 的 KV metadata 中：{ createdAt: epochMs }
@@ -1351,7 +1530,6 @@ async function handleRequest(request) {
   const url = new URL(request.url);
   const pathname = url.pathname;
   const path = decodeURIComponent(pathname.split("/")[1]);
-  const auth = request.headers.get("Authorization");
 
   function normalizeAdminPath(p) {
     let v = (typeof p === "string" ? p : "").trim();
@@ -1436,6 +1614,9 @@ async function handleRequest(request) {
   const adminPass = (typeof ADMIN_PASS === "string" && ADMIN_PASS.trim())
     ? ADMIN_PASS.trim()
     : DEFAULT_ADMIN_PASS;
+  const cookies = parseCookieHeader(request.headers.get('Cookie'));
+  const expectedSessionToken = await createAdminSessionToken(adminPass);
+  const isAdminAuthed = cookies.cflink_admin_session === expectedSessionToken;
   // 3) 长链接域名黑名单（环境变量，多行 / 逗号分隔均可）：LONG_DOMAIN_BLACKLIST
   //    - 例如：epochtimes.com  将拦截 epochtimes.com 以及所有子域名（www.epochtimes.com 等）
   //    - 例如：xxx.epochtimes.com 将拦截该子域名及其更深层子域名
@@ -1467,15 +1648,39 @@ async function handleRequest(request) {
     "cache-control": "no-store",
   };
 
+  // 后台登录
+  if (pathname === adminBase + "/login" && request.method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const password = typeof body?.password === 'string' ? body.password : '';
+    if (password !== adminPass) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: jsonHeaders });
+    }
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: {
+        ...jsonHeaders,
+        'set-cookie': buildSessionCookie(expectedSessionToken),
+      },
+    });
+  }
+
+  if (pathname === adminBase + "/logout" && request.method === "POST") {
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: {
+        ...jsonHeaders,
+        'set-cookie': buildLogoutCookie(),
+      },
+    });
+  }
+
   // 后台页面（路径由环境变量控制）
   if (pathname === adminBase || pathname === adminBase + "/") {
-    return new Response(htmlAdmin, { headers: htmlHeaders });
+    return new Response(isAdminAuthed ? htmlAdmin : htmlLogin, { headers: htmlHeaders });
   }
 
   // 后台：获取短链接列表（分页 + 排序 + 显示长链接 + 创建时间）
   // GET {adminApiBase}/all?page=1&size=10&sort=name|time
   if (pathname === adminApiBase + "/all") {
-    if (auth !== adminPass) {
+    if (!isAdminAuthed) {
       return new Response("Unauthorized", { status: 401 });
     }
 
@@ -1608,7 +1813,7 @@ async function handleRequest(request) {
 
   // 后台：删除指定后缀短链（包括哈希索引）
   if (pathname.startsWith(adminApiBase + "/delete/")) {
-    if (auth !== adminPass) {
+    if (!isAdminAuthed) {
       return new Response("Unauthorized", { status: 401 });
     }
 

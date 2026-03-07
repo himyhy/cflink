@@ -705,7 +705,7 @@ const htmlAdmin = `<!DOCTYPE html>
           + '<td data-label="类型">' + type + '</td>'
           + '<td data-label="内容">'
           +   (item.type === 'text'
-                ? (preview ? '<span>' + preview.replaceAll('\n', '<br>') + '</span>' : '<span style="color: var(--text-muted);">（空）</span>')
+                ? (preview ? '<span>' + preview.split(String.fromCharCode(10)).join('<br>') + '</span>' : '<span style="color: var(--text-muted);">（空）</span>')
                 : (preview
                     ? '<a href="' + escapeHtml(content) + '" target="_blank" rel="noopener noreferrer">' + preview + '</a>'
                     : '<span style="color: var(--text-muted);">（空）</span>'))

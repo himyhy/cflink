@@ -17,6 +17,29 @@ function renderMathInHtml(input) {
   return String(input || '');
 }
 
+function extractMathPlaceholders(text) {
+  const math = [];
+  let content = String(text || '');
+
+  function push(expr, displayMode) {
+    const id = math.length;
+    const open = displayMode ? '\\[' : '\\(';
+    const close = displayMode ? '\\]' : '\\)';
+    math.push(open + String(expr || '').trim() + close);
+    return '@@MATH_' + id + '@@';
+  }
+
+  content = content.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => '\n\n' + push(expr, true) + '\n\n');
+  content = content.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => '\n\n' + push(expr, true) + '\n\n');
+  content = content.replace(/(^|\n)((?:\\begin\{[^}]+\}[\s\S]+?\\end\{[^}]+\}))(?:\n|$)/g, (_, prefix, expr) => (prefix || '') + '\n\n' + push(expr, true) + '\n\n');
+  content = content.replace(/\\\((.+?)\\\)/g, (_, expr) => push(expr, false));
+  return { content, math };
+}
+
+function restoreMathPlaceholders(html, math) {
+  return String(html || '').replace(/@@MATH_(\d+)@@/g, (_, id) => math[Number(id)] || '');
+}
+
 function extractFootnotes(text) {
   const lines = String(text || '').split(/\r?\n/);
   const defs = new Map();
@@ -87,8 +110,11 @@ function renderFootnotesSection(defs) {
   if (!defs.size) return '';
   const items = [];
   for (const [label, raw] of defs.entries()) {
-    let footnoteSource = String(raw || '').replace(/\\\((.+?)\\\)/g, (_, expr) => '<span class="math-inline">\\(' + escapeHtmlServer(expr.trim()) + '\\)</span>');
-    const rendered = enhanceRenderedHtml(sanitizeRenderedHtml(marked.parse(footnoteSource, { gfm: true, breaks: true })));
+    const { content, math } = extractMathPlaceholders(raw);
+    const rendered = restoreMathPlaceholders(
+      enhanceRenderedHtml(sanitizeRenderedHtml(marked.parse(String(content || ''), { gfm: true, breaks: true }))),
+      math
+    );
     items.push('<li id="fn-' + encodeURIComponent(label) + '">' + rendered + ' <a class="footnote-backref" href="#fnref-' + encodeURIComponent(label) + '">↩</a></li>');
   }
   return '<section class="footnotes"><hr><ol>' + items.join('') + '</ol></section>';
@@ -96,18 +122,15 @@ function renderFootnotesSection(defs) {
 
 function renderRichMarkdown(text) {
   const { content: withoutDefs, defs } = extractFootnotes(text);
-  const { content: withMathPlaceholders, blocks } = replaceBlockMathWithPlaceholders(withoutDefs);
-  let source = String(withMathPlaceholders || '').replace(/\[\^([^\]\n]+)\]/g, (_, label) => '<sup><a id="fnref-' + encodeURIComponent(label) + '" href="#fn-' + encodeURIComponent(label) + '">[' + label + ']</a></sup>');
-  source = source.replace(/\\\((.+?)\\\)/g, (_, expr) => '<span class="math-inline">\\(' + escapeHtmlServer(expr.trim()) + '\\)</span>');
+  const { content: withMathPlaceholders, math } = extractMathPlaceholders(withoutDefs);
+  const source = String(withMathPlaceholders || '').replace(/\[\^([^\]\n]+)\]/g, (_, label) => '<sup><a id="fnref-' + encodeURIComponent(label) + '" href="#fn-' + encodeURIComponent(label) + '">[' + label + ']</a></sup>');
   const rawHtml = marked.parse(source, {
     gfm: true,
     breaks: true,
   });
-  let mathHtml = renderMathInHtml(rawHtml);
-  mathHtml = mathHtml.replace(/<p>@@BLOCK_MATH_(\d+)@@<\/p>/g, (_, id) => blocks[Number(id)] || '');
-  mathHtml = mathHtml.replace(/@@BLOCK_MATH_(\d+)@@/g, (_, id) => blocks[Number(id)] || '');
-  const safeHtml = sanitizeRenderedHtml(mathHtml);
-  return enhanceRenderedHtml(safeHtml) + renderFootnotesSection(defs);
+  const safeHtml = sanitizeRenderedHtml(rawHtml);
+  const enhanced = enhanceRenderedHtml(safeHtml);
+  return restoreMathPlaceholders(enhanced, math) + renderFootnotesSection(defs);
 }
 
 function escapeHtmlServer(input) {

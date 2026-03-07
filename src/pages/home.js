@@ -393,10 +393,6 @@ export const htmlIndex = `<!DOCTYPE html>
 
     .suffix-shell {
       display: block;
-      padding: 0;
-      border: none;
-      background: transparent;
-      box-shadow: none;
     }
 
     .suffix-input {
@@ -410,6 +406,7 @@ export const htmlIndex = `<!DOCTYPE html>
       outline: none;
       font-family: inherit;
       transition: .16s border-color ease, .16s box-shadow ease, .16s transform ease;
+      display: block;
     }
 
     .suffix-input:focus {
@@ -782,7 +779,7 @@ export const htmlIndex = `<!DOCTYPE html>
               <div class="field">
                 <label for="k">自定义后缀（可选）</label>
                 <div class="input suffix-shell">
-                  <input class="suffix-input" type="text" id="k" placeholder="e.g. note / guide / memo" autocomplete="off" />
+                  <input class="input suffix-input" type="text" id="k" placeholder="e.g. note / guide / memo" autocomplete="off" />
                 </div>
                 <div class="hint">建议使用字母、数字、短横线；系统保留后缀不可用。</div>
               </div>

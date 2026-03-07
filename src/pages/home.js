@@ -711,7 +711,7 @@ export const htmlIndex = `<!DOCTYPE html>
             <span class="chip">文本 / 链接 / 文件</span>
             <span class="chip">支持自定义后缀</span>
           </div>
-          <div class="hero-note">首页只做一件事：让人打开就能立即创建分享，而不是先研究说明文档。</div>
+          <div class="hero-note">适合临时分享、跨设备传递和轻量内容分发。</div>
         </section>
 
         <section class="create-card">

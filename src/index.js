@@ -22,12 +22,24 @@ function renderMathInHtml(input) {
   return output;
 }
 
+function sanitizeRenderedHtml(html) {
+  let out = String(html || '');
+  out = out.replace(/<\s*script\b[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, '');
+  out = out.replace(/<\s*style\b[^>]*>[\s\S]*?<\s*\/\s*style\s*>/gi, '');
+  out = out.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  out = out.replace(/\sstyle\s*=\s*("[^"]*"|'[^']*')/gi, '');
+  out = out.replace(/\s(href|src)\s*=\s*("|')\s*javascript:[^"']*(\2)/gi, '');
+  out = out.replace(/\s(href|src)\s*=\s*("|')\s*data:text\/html[^"']*(\2)/gi, '');
+  return out;
+}
+
 function renderRichMarkdown(text) {
   const rawHtml = marked.parse(String(text || ''), {
     gfm: true,
     breaks: true,
   });
-  return renderMathInHtml(rawHtml);
+  const mathHtml = renderMathInHtml(rawHtml);
+  return sanitizeRenderedHtml(mathHtml);
 }
 
 

@@ -56,7 +56,6 @@ export function renderFilePage(file, key) {
       --muted: #64748b;
       --primary: #2563eb;
       --primary-2: #4f46e5;
-      --success: #16a34a;
       --shadow-lg: 0 24px 60px rgba(15,23,42,0.10);
       --shadow-md: 0 14px 32px rgba(15,23,42,0.08);
     }
@@ -111,7 +110,6 @@ export function renderFilePage(file, key) {
       display:inline-flex; align-items:center; justify-content:center;
     }
     .btn-primary { color:#fff; background:linear-gradient(90deg,var(--primary),var(--primary-2)); box-shadow:0 12px 24px rgba(37,99,235,.20); }
-    .btn-success { color:#fff; background:linear-gradient(90deg,#16a34a,#22c55e); box-shadow:0 12px 24px rgba(34,197,94,.18); }
     .btn-ghost { color:var(--text); background:rgba(148,163,184,.08); border:1px solid var(--border); }
     .panel {
       border:1px solid var(--border); background:var(--surface); border-radius:24px; box-shadow:var(--shadow-lg);
@@ -152,7 +150,7 @@ export function renderFilePage(file, key) {
       <div class="top-actions">
         <a class="btn btn-ghost" href="/">回到首页</a>
         <a class="btn btn-primary" href="${previewUrl}" target="_blank" rel="noopener noreferrer">打开原文件</a>
-        <a class="btn btn-success" href="${downloadUrl}">下载文件</a>
+        <a class="btn btn-primary" href="${downloadUrl}">下载文件</a>
       </div>
     </header>
 

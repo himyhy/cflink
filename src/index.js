@@ -131,6 +131,7 @@ function renderTextPage(content, key, title) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>${safeTitle || (safeKey ? safeKey + " - 文本页" : "文本页")}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.37/dist/katex.min.css">
   <style>
     :root {
       color-scheme: light dark;

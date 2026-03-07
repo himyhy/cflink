@@ -10,7 +10,7 @@
 - 自定义 403 / 404 跳转
 - Cloudflare 一键部署
 
-当前仓库面向 **Cloudflare 一键部署** 做了整理，默认使用当前主版本：`worker_updated_v3.js`。
+当前仓库面向 **Cloudflare 一键部署** 做了整理，默认使用当前主版本：`src/index.js`。
 
 ## 一键部署
 
@@ -88,7 +88,7 @@
 
 ## 目录说明
 
-- `worker_updated_v3.js`
+- `src/index.js`
   - 当前主版本 / 推荐部署版本
 
 - `wrangler.jsonc`

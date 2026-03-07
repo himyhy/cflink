@@ -1,4 +1,0 @@
-# Optional local development variables
-ADMIN_PATH=/admin
-LONG_DOMAIN_BLACKLIST=
-SUFFIX_BLACKLIST=

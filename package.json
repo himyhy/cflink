@@ -14,6 +14,18 @@
     "bindings": {
       "LINKS": {
         "description": "KV namespace used to store shortlink mappings and indexes."
+      },
+      "ADMIN_PATH": {
+        "description": "Admin panel path. Default: `/admin`"
+      },
+      "ADMIN_PASS": {
+        "description": "Admin panel password. Change the default value before first use."
+      },
+      "LONG_DOMAIN_BLACKLIST": {
+        "description": "Optional blocked long URL domains. Leave empty if unused. Supports multiple lines or comma-separated values."
+      },
+      "SUFFIX_BLACKLIST": {
+        "description": "Optional blocked shortlink suffixes. Leave empty if unused. Supports multiple lines or comma-separated values."
       }
     }
   },

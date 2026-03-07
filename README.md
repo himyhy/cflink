@@ -29,16 +29,20 @@
 2. `ADMIN_PATH`
    - 建议填：`/admin`
 
-3. `LONG_DOMAIN_BLACKLIST`
+3. `ADMIN_PASS`
+   - 建议直接改成你自己的后台密码
+   - 默认值是：`change-this-password`
+
+4. `LONG_DOMAIN_BLACKLIST`
    - 不需要就留空
 
-4. `SUFFIX_BLACKLIST`
+5. `SUFFIX_BLACKLIST`
    - 不需要就留空
 
 部署完成后访问：
 
 - `/` → 首页创建短链接
-- `/admin` → 后台管理页面
+- `/admin` → 后台管理页面（如果你把 `ADMIN_PATH` 改成别的，就访问对应路径）
 
 ## 功能说明
 
@@ -77,6 +81,11 @@
 - `ADMIN_PATH`
   - 后台路径
   - 示例：`/admin`
+
+- `ADMIN_PASS`
+  - 后台密码
+  - 默认值：`change-this-password`
+  - 强烈建议部署时直接改掉
 
 - `LONG_DOMAIN_BLACKLIST`
   - 长链接域名黑名单

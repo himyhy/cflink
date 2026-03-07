@@ -17,6 +17,7 @@
   ],
   "vars": {
     "ADMIN_PATH": "/admin",
+    "ADMIN_PASS": "change-this-password",
     "LONG_DOMAIN_BLACKLIST": "",
     "SUFFIX_BLACKLIST": ""
   }

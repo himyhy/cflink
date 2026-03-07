@@ -694,8 +694,10 @@ const htmlAdmin = `<!DOCTYPE html>
       items.forEach(item => {
         const name = escapeHtml(item.name);
         const type = item.type === 'text' ? '文本' : '链接';
+        const title = String(item.title || '');
         const content = String(item.value || '');
-        const preview = escapeHtml(content.length > 120 ? content.slice(0, 120) + '…' : content);
+        const previewSource = item.type === 'text' && title ? (title + '｜' + content) : content;
+        const preview = escapeHtml(previewSource.length > 120 ? previewSource.slice(0, 120) + '…' : previewSource);
         const created = formatTime(Number(item.createdAt));
 
         html += '<tr>'
@@ -1677,7 +1679,7 @@ async function handleRequest(request) {
     return new Response(isAdminAuthed ? htmlAdmin : htmlLogin, { headers: htmlHeaders });
   }
 
-  // 后台：获取短链接列表（分页 + 排序 + 显示长链接 + 创建时间）
+  // 后台：获取分享内容列表（稳妥模式：全量读取 -> 解析 -> 搜索 -> 排序 -> 分页）
   // GET {adminApiBase}/all?page=1&size=10&sort=name|time
   if (pathname === adminApiBase + "/all") {
     if (!isAdminAuthed) {
@@ -1694,110 +1696,28 @@ async function handleRequest(request) {
     const size = Math.min(10, Math.max(1, Math.floor(Number.isFinite(sizeRaw) ? sizeRaw : 10)));
     const sort = sortRaw === "time" ? "time" : "name";
 
-    // 读取索引（带 createdAt）
-    const index = await getAdminIndexCached();
-
-    // ====== 搜索模式：匹配后缀或长链接（全量检索，但做并发以加速）======
-    if (q) {
-      const matched = [];
-      const missingKeys = [];
-
-      // 并发拉取 value 来做搜索（KV 无法直接按 value 查询）
-      let ptr = 0;
-      const concurrency = Math.min(30, Math.max(1, index.length));
-
-      async function worker() {
-        while (true) {
-          const i = ptr++;
-          if (i >= index.length) break;
-
-          const it = index[i];
-          const raw = await LINKS.get(it.name);
-          if (typeof raw !== "string" || !raw.length) {
-            missingKeys.push(it.name);
-            continue;
-          }
-
-          const parsed = parseStoredValue(raw);
-          const content = String(parsed?.value || "");
-          const nameMatch = it.name.toLowerCase().includes(q);
-          const valMatch = content.toLowerCase().includes(q);
-          if (nameMatch || valMatch) {
-            matched.push({ name: it.name, value: content, type: parsed?.type || 'url', createdAt: it.createdAt || 0 });
-          }
-        }
-      }
-
-      await Promise.all(new Array(concurrency).fill(0).map(() => worker()));
-
-      if (missingKeys.length) {
-        await Promise.all(missingKeys.map((k) => LINKS.delete(k)));
-        invalidateAdminListCache();
-      }
-
-      if (sort === "time") {
-        matched.sort((a, b) => {
-          const dt = (b.createdAt || 0) - (a.createdAt || 0);
-          if (dt !== 0) return dt;
-          return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
-        });
-      } else {
-        matched.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
-      }
-
-      const total = matched.length;
-      const totalPages = Math.max(1, Math.ceil(total / size));
-      const page = Math.min(totalPages, Math.max(1, Math.floor(Number.isFinite(pageRaw) ? pageRaw : 1)));
-
-      const start = (page - 1) * size;
-      const pageItems = matched.slice(start, start + size);
-
-      const links = pageItems.map((it) => ({ name: it.name, value: it.value, type: it.type || 'url', createdAt: it.createdAt || 0 }));
-
-      return new Response(
-        JSON.stringify({ page, size, sort, q: qRaw, total, totalPages, links }),
-        { headers: jsonHeaders }
-      );
-    }
-
-    // ====== 非搜索模式：分页取值（每页最多 10 条，避免全量 KV.get 导致缓慢）======
-    if (sort === "time") {
-      // 新 → 旧；同时间按 name 稳定排序
-      index.sort((a, b) => {
-        const dt = (b.createdAt || 0) - (a.createdAt || 0);
-        if (dt !== 0) return dt;
-        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
-      });
-    } else {
-      // A → Z，支持数字排序（a2 < a10）
-      index.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
-    }
-
-    const total = index.length;
-    const totalPages = Math.max(1, Math.ceil(total / size));
-    const page = Math.min(totalPages, Math.max(1, Math.floor(Number.isFinite(pageRaw) ? pageRaw : 1)));
-
-    const start = (page - 1) * size;
-    const pageItems = index.slice(start, start + size);
-
-    const values = await Promise.all(pageItems.map((it) => LINKS.get(it.name)));
-
-    const links = [];
+    const index = await buildAdminIndex();
+    const items = [];
     const missingKeys = [];
-    for (let i = 0; i < pageItems.length; i++) {
-      const it = pageItems[i];
-      const raw = values[i];
-      if (typeof raw === "string" && raw.length) {
-        const parsed = parseStoredValue(raw);
-        links.push({
-          name: it.name,
-          value: String(parsed?.value || ""),
-          type: parsed?.type || 'url',
-          createdAt: it.createdAt || 0,
-        });
-      } else {
+
+    for (const it of index) {
+      const raw = await LINKS.get(it.name);
+      if (typeof raw !== "string" || !raw.length) {
         missingKeys.push(it.name);
+        continue;
       }
+      const parsed = parseStoredValue(raw);
+      const value = String(parsed?.value || "");
+      const title = String(parsed?.title || "");
+      const haystack = (it.name + "\n" + value + "\n" + title).toLowerCase();
+      if (q && !haystack.includes(q)) continue;
+      items.push({
+        name: it.name,
+        value,
+        title,
+        type: parsed?.type || 'url',
+        createdAt: it.createdAt || 0,
+      });
     }
 
     if (missingKeys.length) {
@@ -1805,8 +1725,24 @@ async function handleRequest(request) {
       invalidateAdminListCache();
     }
 
+    if (sort === "time") {
+      items.sort((a, b) => {
+        const dt = (b.createdAt || 0) - (a.createdAt || 0);
+        if (dt !== 0) return dt;
+        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+      });
+    } else {
+      items.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+    }
+
+    const total = items.length;
+    const totalPages = Math.max(1, Math.ceil(total / size));
+    const page = Math.min(totalPages, Math.max(1, Math.floor(Number.isFinite(pageRaw) ? pageRaw : 1)));
+    const start = (page - 1) * size;
+    const links = items.slice(start, start + size);
+
     return new Response(
-      JSON.stringify({ page, size, sort, total, totalPages, links }),
+      JSON.stringify({ page, size, sort, q: qRaw, total, totalPages, links }),
       { headers: jsonHeaders }
     );
   }

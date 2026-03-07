@@ -69,11 +69,18 @@ function renderTextPage(content, key, title) {
     .content p { margin: 0 0 12px; }
     .content ul,.content ol { margin: 0 0 12px 20px; padding: 0; }
     .content li { margin: 0 0 8px; }
+    .content img { max-width: 100%; height: auto; border-radius: 14px; display: block; margin: 0 0 14px; }
+    .content video,.content audio { width: 100%; margin: 0 0 14px; }
+    .content del { color: var(--sub); }
     .content code { padding: 2px 6px; border-radius: 8px; background: rgba(148,163,184,0.18); font-family: ui-monospace, SFMono-Regular, monospace; font-size: .92em; }
     .content pre { margin: 0 0 14px; padding: 14px; overflow:auto; border-radius: 14px; background: rgba(15,23,42,0.9); color: #e5e7eb; }
     .content pre code { padding: 0; background: transparent; color: inherit; }
     .content blockquote { margin: 0 0 14px; padding: 2px 0 2px 14px; border-left: 4px solid rgba(37,99,235,0.4); color: var(--sub); }
     .content hr { border: none; border-top: 1px solid rgba(148,163,184,0.35); margin: 18px 0; }
+    .content .table-wrap { overflow-x: auto; margin: 0 0 14px; }
+    .content table { width: 100%; border-collapse: collapse; min-width: 420px; }
+    .content th,.content td { padding: 10px 12px; border: 1px solid rgba(148,163,184,0.28); text-align: left; vertical-align: top; }
+    .content th { background: rgba(148,163,184,0.12); font-weight: 700; }
     .content .md-space { height: 8px; }
     .content .task-list { list-style: none; margin-left: 0; }
     .content .task-item { display:flex; align-items:flex-start; gap:10px; }
@@ -199,12 +206,17 @@ function renderFilePage(file, key) {
 
 function renderInlineMarkdown(text) {
   return String(text || "")
+    .replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, '<img src="$2" alt="$1" loading="lazy">')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/__(.+?)__/g, "<strong>$1</strong>")
+    .replace(/~~(.+?)~~/g, "<del>$1</del>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/_(.+?)_/g, "<em>$1</em>")
     .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/(^|\s)(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg))(\s|$)/gi, '$1<img src="$2" alt="image" loading="lazy">$3')
+    .replace(/(^|\s)(https?:\/\/\S+\.(?:mp4|webm|mov))(\s|$)/gi, '$1<video controls src="$2"></video>$3')
+    .replace(/(^|\s)(https?:\/\/\S+\.(?:mp3|wav|ogg|m4a))(\s|$)/gi, '$1<audio controls src="$2"></audio>$3');
 }
 
 function renderBasicMarkdown(text) {
@@ -215,6 +227,15 @@ function renderBasicMarkdown(text) {
   let inCode = false;
   let codeLines = [];
   let inBlockquote = false;
+  let tableRows = [];
+
+  function closeTable() {
+    if (!tableRows.length) return;
+    const header = tableRows[0] || [];
+    const body = tableRows.slice(1);
+    html.push('<div class="table-wrap"><table><thead><tr>' + header.map((cell) => '<th>' + renderInlineMarkdown(cell) + '</th>').join('') + '</tr></thead><tbody>' + body.map((row) => '<tr>' + row.map((cell) => '<td>' + renderInlineMarkdown(cell) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>');
+    tableRows = [];
+  }
 
   function closeLists() {
     if (inUl) {
@@ -247,6 +268,7 @@ function renderBasicMarkdown(text) {
     const escaped = escapeHtmlServer(rawLine);
 
     if (/^```/.test(trimmed)) {
+      closeTable();
       closeLists();
       closeQuote();
       if (inCode) {
@@ -263,6 +285,7 @@ function renderBasicMarkdown(text) {
     }
 
     if (!trimmed) {
+      closeTable();
       closeLists();
       closeQuote();
       html.push('<div class="md-space"></div>');
@@ -270,6 +293,7 @@ function renderBasicMarkdown(text) {
     }
 
     if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
+      closeTable();
       closeLists();
       closeQuote();
       html.push('<hr>');
@@ -277,6 +301,7 @@ function renderBasicMarkdown(text) {
     }
 
     if (/^>\s?/.test(trimmed)) {
+      closeTable();
       closeLists();
       if (!inBlockquote) {
         html.push('<blockquote>');
@@ -287,6 +312,16 @@ function renderBasicMarkdown(text) {
     }
 
     closeQuote();
+
+    if (/^\|.+\|$/.test(trimmed)) {
+      const cells = trimmed.slice(1, -1).split('|').map((cell) => escapeHtmlServer(cell.trim()));
+      if (!/^\|(?:\s*:?-{3,}:?\s*\|)+$/.test(trimmed)) {
+        tableRows.push(cells);
+      }
+      continue;
+    }
+
+    closeTable();
 
     if (/^###\s+/.test(trimmed)) {
       closeLists();
@@ -350,6 +385,7 @@ function renderBasicMarkdown(text) {
   }
 
   closeCode();
+  closeTable();
   closeLists();
   closeQuote();
   return html.join("\n");

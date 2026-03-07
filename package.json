@@ -1,0 +1,28 @@
+{
+  "name": "shortlink-workers-kv",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Workers + KV shortlink service with admin panel and optional Turnstile verification",
+  "cloudflare": {
+    "label": "Shortlink Workers KV",
+    "products": [
+      "Workers",
+      "KV"
+    ],
+    "categories": [],
+    "publish": true,
+    "bindings": {
+      "LINKS": {
+        "description": "KV namespace used to store shortlink mappings and indexes."
+      }
+    }
+  },
+  "devDependencies": {
+    "wrangler": "^4.63.0"
+  },
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "check": "wrangler deploy --dry-run"
+  }
+}

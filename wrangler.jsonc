@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shortlink",
+  "main": "./worker_updated_v3.js",
+  "compatibility_date": "2026-03-07",
+  "workers_dev": true,
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "LINKS"
+    }
+  ],
+  "vars": {
+    "ADMIN_PATH": "/admin",
+    "LONG_DOMAIN_BLACKLIST": "",
+    "SUFFIX_BLACKLIST": ""
+  }
+}

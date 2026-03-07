@@ -115,7 +115,7 @@ export function renderTextPage(content, key, title) {
         inlineMath: [['\\(', '\\)']],
         displayMath: [['\\[', '\\]']]
       },
-      svg: { fontCache: 'global' },
+      svg: { fontCache: 'local' },
       startup: { typeset: false }
     };
 

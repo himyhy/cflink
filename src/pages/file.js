@@ -96,10 +96,14 @@ export function renderFilePage(file, key) {
     .brand-mark {
       width:36px; height:36px; border-radius:12px; position:relative; overflow:hidden; flex:0 0 auto;
       background:linear-gradient(135deg,#2563eb,#4f46e5); box-shadow:0 14px 26px rgba(37,99,235,.22);
+      display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:14px; font-weight:900; letter-spacing:-.06em;
     }
     .brand-mark::before {
+      content:"CF"; position:relative; z-index:1;
+    }
+    .brand-mark::after {
       content:""; position:absolute; inset:1px; border-radius:11px;
-      background:linear-gradient(180deg,rgba(255,255,255,.32),rgba(255,255,255,.03));
+      background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.03)); mix-blend-mode:screen; pointer-events:none;
     }
     .brand-name { font-size:17px; font-weight:800; letter-spacing:-.03em; }
     .brand-sub { color:var(--muted); font-size:12px; margin-top:2px; }

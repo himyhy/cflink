@@ -96,14 +96,29 @@ export const htmlIndex = `<!DOCTYPE html>
       position: relative;
       overflow: hidden;
       flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: -0.06em;
     }
 
     .brand-mark::before {
+      content: "CF";
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-mark::after {
       content: "";
       position: absolute;
       inset: 1px;
       border-radius: 13px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.30), rgba(255,255,255,0.02));
+      background: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.02));
+      mix-blend-mode: screen;
+      pointer-events: none;
     }
 
     .brand-copy {
@@ -653,8 +668,8 @@ export const htmlIndex = `<!DOCTYPE html>
       .hero-copy, .create-card, .capability { border-radius: 22px; }
       .hero-copy { padding: 20px; }
       .create-card { padding: 18px; }
-      .brand-mark { width: 36px; height: 36px; border-radius: 12px; }
-      .brand-mark::before { border-radius: 11px; }
+      .brand-mark { width: 36px; height: 36px; border-radius: 12px; font-size: 14px; }
+      .brand-mark::after { border-radius: 11px; }
       .brand-name { font-size: 17px; }
       h1 { max-width: none; font-size: clamp(28px, 9vw, 40px); }
       .hero-desc { font-size: 14px; line-height: 1.75; }

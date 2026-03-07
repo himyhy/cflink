@@ -391,29 +391,6 @@ export const htmlIndex = `<!DOCTYPE html>
       line-height: 1.7;
     }
 
-    .suffix-shell {
-      display: block;
-    }
-
-    .suffix-input {
-      width: 100%;
-      border: 1px solid rgba(148,163,184,0.45);
-      background: rgba(255,255,255,0.92);
-      color: var(--text);
-      border-radius: var(--radius-md);
-      padding: 12px 13px;
-      font-size: 14px;
-      outline: none;
-      font-family: inherit;
-      transition: .16s border-color ease, .16s box-shadow ease, .16s transform ease;
-      display: block;
-    }
-
-    .suffix-input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
-      transform: translateY(-0.5px);
-    }
 
     .file-shell {
       position: relative;
@@ -778,9 +755,7 @@ export const htmlIndex = `<!DOCTYPE html>
             <div class="grid-2">
               <div class="field">
                 <label for="k">自定义后缀（可选）</label>
-                <div class="suffix-shell">
-                  <input class="suffix-input" type="text" id="k" placeholder="e.g. note / guide / memo" autocomplete="off" />
-                </div>
+                <input class="input" type="text" id="k" placeholder="e.g. note / guide / memo" autocomplete="off" />
                 <div class="hint">建议使用字母、数字、短横线；系统保留后缀不可用。</div>
               </div>
               <div class="field">

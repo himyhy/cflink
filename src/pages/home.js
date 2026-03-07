@@ -58,6 +58,47 @@ export const htmlIndex = `<!DOCTYPE html>
         -webkit-text-fill-color: var(--text) !important;
       }
 
+      .chip {
+        background: rgba(15,23,42,0.62);
+        border-color: rgba(100,116,139,0.34);
+        color: rgba(226,232,240,0.96);
+      }
+
+      .mode-switch {
+        background: rgba(15,23,42,0.54);
+        border-color: rgba(71,85,105,0.44);
+      }
+
+      .mode-btn {
+        color: rgba(203,213,225,0.92);
+      }
+
+      .mode-btn:not(.active):hover {
+        background: rgba(30,41,59,0.72);
+      }
+
+      .mode-meta {
+        background: rgba(15,23,42,0.66);
+        border-color: rgba(100,116,139,0.34);
+      }
+
+      .file-shell {
+        background-color: rgba(15,23,42,0.84) !important;
+        background: rgba(15,23,42,0.84) !important;
+      }
+
+      .file-copy span,
+      .mode-desc,
+      .hero-note {
+        color: rgba(148,163,184,0.94);
+      }
+
+      .file-pill {
+        background: rgba(37,99,235,0.16);
+        color: #bfdbfe;
+        border: 1px solid rgba(96,165,250,0.22);
+      }
+
       .input::placeholder,
       .textarea::placeholder {
         color: rgba(148,163,184,0.88);

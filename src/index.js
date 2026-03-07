@@ -2,6 +2,103 @@
 // 后台密码优先使用环境变量 ADMIN_PASS；若未配置则回退到默认占位值
 const DEFAULT_ADMIN_PASS = "change-this-password";
 
+function escapeHtmlServer(input) {
+  return String(input ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function renderTextPage(content, key) {
+  const safeContent = escapeHtmlServer(content).replaceAll("\n", "<br>");
+  const safeKey = escapeHtmlServer(key || "");
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>${safeKey ? safeKey + " - 文本页" : "文本页"}</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f3f4f6;
+      --card: rgba(255,255,255,0.88);
+      --border: rgba(148,163,184,0.35);
+      --text: #0f172a;
+      --sub: #64748b;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #020617;
+        --card: rgba(15,23,42,0.9);
+        --border: rgba(71,85,105,0.6);
+        --text: #e5e7eb;
+        --sub: #94a3b8;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px 16px;
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.15), transparent 35%), var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    .card {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 24px;
+      padding: 24px 20px;
+      backdrop-filter: blur(18px) saturate(130%);
+      -webkit-backdrop-filter: blur(18px) saturate(130%);
+      box-shadow: 0 18px 40px rgba(15,23,42,0.15);
+    }
+    .eyebrow { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--sub); }
+    h1 { margin: 10px 0 8px; font-size: 24px; }
+    .meta { margin: 0 0 18px; color: var(--sub); font-size: 13px; }
+    .content { line-height: 1.75; font-size: 16px; word-break: break-word; white-space: normal; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <article class="card">
+      <div class="eyebrow">TEXT SHARE</div>
+      <h1>文本内容</h1>
+      <p class="meta">链接标识：/${safeKey || "-"}</p>
+      <div class="content">${safeContent || "（空内容）"}</div>
+    </article>
+  </div>
+</body>
+</html>`;
+}
+
+function encodeStoredValue(payload) {
+  return JSON.stringify(payload);
+}
+
+function parseStoredValue(raw) {
+  if (typeof raw !== "string" || !raw.length) return null;
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    return { type: "url", value: raw, raw };
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      if (parsed.type === "url" && typeof parsed.url === "string") {
+        return { type: "url", value: parsed.url, raw };
+      }
+      if (parsed.type === "text" && typeof parsed.text === "string") {
+        return { type: "text", value: parsed.text, raw };
+      }
+    }
+  } catch (e) {}
+  return { type: "text", value: raw, raw };
+}
+
 // ==================== 1. 后台管理页面模板 ====================
 const htmlAdmin = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -271,7 +368,7 @@ const htmlAdmin = `<!DOCTYPE html>
       <div class="card-header">
         <div>
           <h2>短链接管理后台</h2>
-          <p class="subtitle">管理短链接：查看后缀、原始链接与创建时间（精确到秒）。删除会同时清理哈希索引（不改变原有核心逻辑）。</p>
+          <p class="subtitle">管理分享内容：查看后缀、类型、内容与创建时间（精确到秒）。删除链接项时会同时清理哈希索引。</p>
         </div>
         <span class="badge">ADMIN PANEL</span>
       </div>
@@ -374,7 +471,8 @@ const htmlAdmin = `<!DOCTYPE html>
       html += '<table>';
       html += '<thead><tr>'
         + '<th style="width:16%">后缀</th>'
-        + '<th>原始链接</th>'
+        + '<th style="width:10%">类型</th>'
+        + '<th>内容</th>'
         + '<th style="width:20%">创建时间</th>'
         + '<th style="width:12%">操作</th>'
         + '</tr></thead>';
@@ -382,15 +480,20 @@ const htmlAdmin = `<!DOCTYPE html>
 
       items.forEach(item => {
         const name = escapeHtml(item.name);
-        const url = escapeHtml(item.value || '');
+        const type = item.type === 'text' ? '文本' : '链接';
+        const content = String(item.value || '');
+        const preview = escapeHtml(content.length > 120 ? content.slice(0, 120) + '…' : content);
         const created = formatTime(Number(item.createdAt));
 
         html += '<tr>'
           + '<td data-label="后缀"><strong>/' + name + '</strong></td>'
-          + '<td data-label="原始链接">'
-          +   (url
-                ? '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>'
-                : '<span style="color: var(--text-muted);">（空）</span>')
+          + '<td data-label="类型">' + type + '</td>'
+          + '<td data-label="内容">'
+          +   (item.type === 'text'
+                ? (preview ? '<span>' + preview.replaceAll('\n', '<br>') + '</span>' : '<span style="color: var(--text-muted);">（空）</span>')
+                : (preview
+                    ? '<a href="' + escapeHtml(content) + '" target="_blank" rel="noopener noreferrer">' + preview + '</a>'
+                    : '<span style="color: var(--text-muted);">（空）</span>'))
           + '</td>'
           + '<td data-label="创建时间">' + escapeHtml(created) + '</td>'
           + '<td data-label="操作">'
@@ -593,6 +696,7 @@ const htmlIndex = `<!DOCTYPE html>
       --input-bg: rgba(255, 255, 255, 0.98);
       --input-border: rgba(148, 163, 184, 0.7);
       --input-focus-ring: rgba(59, 130, 246, 0.55);
+      --textarea-min-height: 180px;
 
       --button-primary-from: #2563eb;
       --button-primary-to: #4f46e5;
@@ -763,7 +867,8 @@ const htmlIndex = `<!DOCTYPE html>
     }
 
     input[type="url"],
-    input[type="text"] {
+    input[type="text"],
+    textarea {
       width: 100%;
       padding: 11px 12px;
       font-size: 14px;
@@ -773,13 +878,16 @@ const htmlIndex = `<!DOCTYPE html>
       color: var(--text-main);
       outline: none;
       transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, transform 0.06s ease;
+      font-family: inherit;
     }
 
-    input::placeholder {
+    input::placeholder,
+    textarea::placeholder {
       color: var(--text-muted);
     }
 
-    input:focus {
+    input:focus,
+    textarea:focus {
       border-color: var(--primary);
       box-shadow:
         0 0 0 1px var(--primary-border),
@@ -787,14 +895,40 @@ const htmlIndex = `<!DOCTYPE html>
       transform: translateY(-0.5px);
     }
 
+    textarea {
+      min-height: var(--textarea-min-height);
+      resize: vertical;
+      line-height: 1.6;
+    }
+
     .inline-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .inline-row > .field { flex: 1; min-width: 0; }
 
-    .captcha-wrapper {
-      min-height: 58px;
+    .mode-switch {
       display: flex;
-      align-items: center;
-      justify-content: flex-start;
+      gap: 10px;
+      padding: 4px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.45);
+      border: 1px solid rgba(148,163,184,0.25);
+    }
+
+    .mode-btn {
+      flex: 1;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-sub);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .mode-btn.active {
+      color: #fff;
+      background-image: linear-gradient(90deg, #2563eb, #4f46e5);
+      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
     }
 
     .primary-btn {
@@ -925,6 +1059,14 @@ const htmlIndex = `<!DOCTYPE html>
 
         <div class="form">
           <div class="field">
+            <label>内容类型</label>
+            <div class="mode-switch">
+              <button id="modeUrlBtn" class="mode-btn active" type="button" onclick="setMode('url')">链接</button>
+              <button id="modeTextBtn" class="mode-btn" type="button" onclick="setMode('text')">文本</button>
+            </div>
+          </div>
+
+          <div class="field" id="urlField">
             <label for="u">长链接</label>
             <input
               type="url"
@@ -932,6 +1074,14 @@ const htmlIndex = `<!DOCTYPE html>
               placeholder="例如：https://example.com/v1/2026/long-url...."
               autocomplete="off"
             />
+          </div>
+
+          <div class="field" id="textField" style="display:none;">
+            <label for="t">文本内容</label>
+            <textarea
+              id="t"
+              placeholder="输入你想分享的文字内容，访问生成后的链接即可看到这段文字。"
+            ></textarea>
           </div>
 
           <div class="inline-row">
@@ -946,14 +1096,11 @@ const htmlIndex = `<!DOCTYPE html>
             </div>
           </div>
 
-          <div class="field">
-            <label>验证</label>          </div>
-
           <button id="btn" class="primary-btn" onclick="s()">立即生成</button>
         </div>
 
         <div id="res" class="result">
-          <div class="result-label">SHORT LINK</div>
+          <div class="result-label">SHARE LINK</div>
           <div id="link" class="result-link"></div>
           <button class="copy-btn" onclick="cp(this)">点击复制</button>
         </div>
@@ -966,12 +1113,32 @@ const htmlIndex = `<!DOCTYPE html>
   </div>
 
   <script>
+    let mode = 'url';
+
+    function setMode(nextMode) {
+      mode = nextMode === 'text' ? 'text' : 'url';
+      const urlField = document.getElementById('urlField');
+      const textField = document.getElementById('textField');
+      const urlBtn = document.getElementById('modeUrlBtn');
+      const textBtn = document.getElementById('modeTextBtn');
+      if (urlField) urlField.style.display = mode === 'url' ? 'block' : 'none';
+      if (textField) textField.style.display = mode === 'text' ? 'block' : 'none';
+      if (urlBtn) urlBtn.classList.toggle('active', mode === 'url');
+      if (textBtn) textBtn.classList.toggle('active', mode === 'text');
+    }
+
     async function s() {
       const u = document.getElementById('u').value.trim();
+      const t = document.getElementById('t').value.trim();
       const k = document.getElementById('k').value.trim();
 
-      if (!u || !u.startsWith('http')) {
-        alert('请输入以 http 或 https 开头的完整链接。');
+      if (mode === 'url') {
+        if (!u || !u.startsWith('http')) {
+          alert('请输入以 http 或 https 开头的完整链接。');
+          return;
+        }
+      } else if (!t) {
+        alert('请输入要分享的文本内容。');
         return;
       }
 
@@ -981,7 +1148,7 @@ const htmlIndex = `<!DOCTYPE html>
       try {
         const res = await fetch('/', {
           method: 'POST',
-          body: JSON.stringify({ url: u, key: k })
+          body: JSON.stringify({ type: mode, url: u, text: t, key: k })
         });
         const d = await res.json();
 
@@ -1241,16 +1408,18 @@ async function handleRequest(request) {
           if (i >= index.length) break;
 
           const it = index[i];
-          const val = await LINKS.get(it.name);
-          if (typeof val !== "string" || !val.length) {
+          const raw = await LINKS.get(it.name);
+          if (typeof raw !== "string" || !raw.length) {
             missingKeys.push(it.name);
             continue;
           }
 
+          const parsed = parseStoredValue(raw);
+          const content = String(parsed?.value || "");
           const nameMatch = it.name.toLowerCase().includes(q);
-          const valMatch = val.toLowerCase().includes(q);
+          const valMatch = content.toLowerCase().includes(q);
           if (nameMatch || valMatch) {
-            matched.push({ name: it.name, value: val, createdAt: it.createdAt || 0 });
+            matched.push({ name: it.name, value: content, type: parsed?.type || 'url', createdAt: it.createdAt || 0 });
           }
         }
       }
@@ -1279,7 +1448,7 @@ async function handleRequest(request) {
       const start = (page - 1) * size;
       const pageItems = matched.slice(start, start + size);
 
-      const links = pageItems.map((it) => ({ name: it.name, value: it.value, createdAt: it.createdAt || 0 }));
+      const links = pageItems.map((it) => ({ name: it.name, value: it.value, type: it.type || 'url', createdAt: it.createdAt || 0 }));
 
       return new Response(
         JSON.stringify({ page, size, sort, q: qRaw, total, totalPages, links }),
@@ -1313,9 +1482,15 @@ async function handleRequest(request) {
     const missingKeys = [];
     for (let i = 0; i < pageItems.length; i++) {
       const it = pageItems[i];
-      const val = values[i];
-      if (typeof val === "string" && val.length) {
-        links.push({ name: it.name, value: val, createdAt: it.createdAt || 0 });
+      const raw = values[i];
+      if (typeof raw === "string" && raw.length) {
+        const parsed = parseStoredValue(raw);
+        links.push({
+          name: it.name,
+          value: String(parsed?.value || ""),
+          type: parsed?.type || 'url',
+          createdAt: it.createdAt || 0,
+        });
       } else {
         missingKeys.push(it.name);
       }
@@ -1342,9 +1517,10 @@ async function handleRequest(request) {
     const keyDel = decodeURIComponent(pathname.slice(prefix.length) || "");
     if (!keyDel) return new Response("Bad Request", { status: 400 });
 
-    const longUrl = await LINKS.get(keyDel);
-    if (longUrl) {
-      const hash = await sha512(longUrl);
+    const rawValue = await LINKS.get(keyDel);
+    const parsedValue = parseStoredValue(rawValue);
+    if (parsedValue?.type === 'url' && parsedValue.value) {
+      const hash = await sha512(parsedValue.value);
       await Promise.all([LINKS.delete(hash), LINKS.delete(keyDel)]);
     } else {
       await LINKS.delete(keyDel);
@@ -1356,47 +1532,58 @@ async function handleRequest(request) {
     return new Response("OK", { headers: { "cache-control": "no-store" } });
   }
 
-  // 生成短链（全部永久）
+  // 生成短链 / 文本页（全部永久）
   if (request.method === "POST") {
     const req = await request.json();
 
     const ERR_SUFFIX_TAKEN = "该后缀已被占用";
     const ERR_DOMAIN_BLOCKED = "此长链接域名无法使用";
-
+    const type = req?.type === "text" ? "text" : "url";
     const reqUrl = typeof req.url === "string" ? req.url.trim() : "";
-    if (!reqUrl) {
+    const reqText = typeof req.text === "string" ? req.text.trim() : "";
+
+    if (type === "url" && !reqUrl) {
       return new Response(JSON.stringify({ error: "链接不能为空" }), {
         status: 400,
         headers: jsonHeaders,
       });
     }
 
+    if (type === "text" && !reqText) {
+      return new Response(JSON.stringify({ error: "文本内容不能为空" }), {
+        status: 400,
+        headers: jsonHeaders,
+      });
+    }
+
     let urlObj;
-    try {
-      urlObj = new URL(reqUrl);
-    } catch (e) {
-      return new Response(JSON.stringify({ error: "链接格式错误" }), {
-        status: 400,
-        headers: jsonHeaders,
-      });
+    if (type === "url") {
+      try {
+        urlObj = new URL(reqUrl);
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "链接格式错误" }), {
+          status: 400,
+          headers: jsonHeaders,
+        });
+      }
+
+      if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
+        return new Response(JSON.stringify({ error: "仅支持 http/https 链接" }), {
+          status: 400,
+          headers: jsonHeaders,
+        });
+      }
+
+      const host = String(urlObj.hostname || "").toLowerCase();
+      if (domainBlacklist.length && isHostBlocked(host, domainBlacklist)) {
+        return new Response(JSON.stringify({ error: ERR_DOMAIN_BLOCKED }), {
+          status: 403,
+          headers: jsonHeaders,
+        });
+      }
     }
 
-    if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
-      return new Response(JSON.stringify({ error: "仅支持 http/https 链接" }), {
-        status: 400,
-        headers: jsonHeaders,
-      });
-    }
-
-    const host = String(urlObj.hostname || "").toLowerCase();
-    if (domainBlacklist.length && isHostBlocked(host, domainBlacklist)) {
-      return new Response(JSON.stringify({ error: ERR_DOMAIN_BLOCKED }), {
-        status: 403,
-        headers: jsonHeaders,
-      });
-    }
-
-    const customKey = typeof req.key === "string" ? req.key : "";
+    const customKey = typeof req.key === "string" ? req.key.trim() : "";
     if (customKey && isSuffixBlocked(customKey, suffixBlacklist)) {
       return new Response(JSON.stringify({ error: ERR_SUFFIX_TAKEN }), {
         status: 409,
@@ -1411,7 +1598,6 @@ async function handleRequest(request) {
       });
     }
 
-    // 随机后缀需要避开黑名单（不改变原有 6 位随机核心逻辑，仅增加过滤）
     let key = customKey || Math.random().toString(36).substring(2, 8);
     if (!customKey && suffixBlacklist.size) {
       let guard = 0;
@@ -1427,22 +1613,23 @@ async function handleRequest(request) {
       }
     }
 
-    const hash = await sha512(reqUrl);
-    const existKey = await LINKS.get(hash);
+    if (type === "url") {
+      const hash = await sha512(reqUrl);
+      const existKey = await LINKS.get(hash);
 
-    if (!customKey && existKey && !isSuffixBlocked(existKey, suffixBlacklist)) {
-      // 已为该长链接生成过短链，直接复用（若复用 key 在黑名单中，则跳过复用并重新生成）
-      key = existKey;
+      if (!customKey && existKey && !isSuffixBlocked(existKey, suffixBlacklist)) {
+        key = existKey;
+      } else {
+        await LINKS.put(key, encodeStoredValue({ type: "url", url: reqUrl }), { metadata: { createdAt: Date.now() } });
+        if (!customKey) await LINKS.put(hash, key);
+        invalidateAdminListCache();
+      }
     } else {
-      // 全部永久：不设置 expirationTtl
-      await LINKS.put(key, reqUrl, { metadata: { createdAt: Date.now() } });
-      if (!customKey) await LINKS.put(hash, key);
-
-      // 新增后刷新后台列表缓存
+      await LINKS.put(key, encodeStoredValue({ type: "text", text: reqText }), { metadata: { createdAt: Date.now() } });
       invalidateAdminListCache();
     }
 
-    return new Response(JSON.stringify({ key: "/" + key }), {
+    return new Response(JSON.stringify({ key: "/" + key, type }), {
       headers: jsonHeaders,
     });
   }
@@ -1455,8 +1642,14 @@ async function handleRequest(request) {
     return Response.redirect("https://403.lily.lat/" + url.search, 302);
   }
 
-  const target = await LINKS.get(path);
-  if (target) return Response.redirect(target + url.search, 302);
+  const targetRaw = await LINKS.get(path);
+  const target = parseStoredValue(targetRaw);
+  if (target?.type === 'url' && target.value) {
+    return Response.redirect(target.value + url.search, 302);
+  }
+  if (target?.type === 'text') {
+    return new Response(renderTextPage(target.value, path), { headers: htmlHeaders });
+  }
 
   // 未创建的后缀：跳转到统一 404 页面
   return Response.redirect("https://404.lily.lat/" + url.search, 302);

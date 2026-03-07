@@ -972,64 +972,38 @@ const htmlIndex = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>短链接生成</title>
+  <title>CFLink 分享中心</title>
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <style>
     :root {
-      --bg-color: #f3f4f6;
-      --bg-gradient: radial-gradient(circle at top left, #e0f2fe 0, #f3f4f6 35%, #e5e7eb 100%);
-      --card-bg: rgba(255, 255, 255, 0.82);
-      --card-border: rgba(148, 163, 184, 0.45);
-      --card-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+      color-scheme: light dark;
+      --bg: #eef4ff;
+      --bg-2: #f8fafc;
+      --card: rgba(255,255,255,0.86);
+      --card-border: rgba(148,163,184,0.32);
+      --text: #0f172a;
+      --sub: #64748b;
+      --muted: #94a3b8;
+      --primary: #2563eb;
+      --primary-2: #4f46e5;
+      --accent: #16a34a;
+      --danger: #dc2626;
+      --shadow: 0 18px 45px rgba(15,23,42,0.10);
       --radius-xl: 24px;
       --radius-lg: 18px;
-      --radius-md: 12px;
-
-      --text-main: #0f172a;
-      --text-sub: #6b7280;
-      --text-muted: #9ca3af;
-
-      --primary: #2563eb;
-      --primary-soft: rgba(37, 99, 235, 0.12);
-      --primary-border: rgba(37, 99, 235, 0.4);
-
-      --accent: #22c55e;
-      --accent-soft: rgba(34, 197, 94, 0.12);
-
-      --input-bg: rgba(255, 255, 255, 0.98);
-      --input-border: rgba(148, 163, 184, 0.7);
-      --input-focus-ring: rgba(59, 130, 246, 0.55);
-      --textarea-min-height: 180px;
-
-      --button-primary-from: #2563eb;
-      --button-primary-to: #4f46e5;
-      --button-primary-shadow: 0 14px 30px rgba(37, 99, 235, 0.35);
-
-      --button-accent-from: #16a34a;
-      --button-accent-to: #22c55e;
-      --button-accent-shadow: 0 12px 26px rgba(34, 197, 94, 0.32);
-
-      --result-bg: rgba(248, 250, 252, 0.92);
-      --result-border: rgba(148, 163, 184, 0.4);
+      --radius-md: 14px;
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg-color: #020617;
-        --bg-gradient: radial-gradient(circle at top left, #0f172a 0, #020617 40%, #020617 100%);
-        --card-bg: rgba(15, 23, 42, 0.88);
-        --card-border: rgba(51, 65, 85, 0.9);
-        --card-shadow: 0 22px 60px rgba(15, 23, 42, 0.9);
-
-        --text-main: #e5e7eb;
-        --text-sub: #9ca3af;
-        --text-muted: #6b7280;
-
-        --input-bg: rgba(15, 23, 42, 0.96);
-        --input-border: rgba(75, 85, 99, 0.9);
-
-        --result-bg: rgba(15, 23, 42, 0.96);
-        --result-border: rgba(55, 65, 81, 0.9);
+        --bg: #020617;
+        --bg-2: #0f172a;
+        --card: rgba(15,23,42,0.84);
+        --card-border: rgba(71,85,105,0.55);
+        --text: #e5e7eb;
+        --sub: #94a3b8;
+        --muted: #64748b;
+        --shadow: 0 22px 60px rgba(2,6,23,0.55);
       }
     }
 
@@ -1037,402 +1011,422 @@ const htmlIndex = `<!DOCTYPE html>
 
     html, body {
       margin: 0;
-      padding: 0;
-      height: 100%;
+      min-height: 100%;
     }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-      background: var(--bg-gradient), var(--bg-color);
-      color: var(--text-main);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(59,130,246,0.16), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(79,70,229,0.12), transparent 26%),
+        linear-gradient(180deg, var(--bg), var(--bg-2));
       padding: 16px;
       -webkit-font-smoothing: antialiased;
     }
 
-    .page {
-      width: 100%;
-      max-width: 520px;
+    .wrap {
+      max-width: 1040px;
+      margin: 0 auto;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 10px;
+      margin-bottom: 14px;
       padding-left: 4px;
       user-select: none;
     }
 
     .brand-dot {
-      width: 9px;
-      height: 9px;
+      width: 10px;
+      height: 10px;
       border-radius: 999px;
-      background: radial-gradient(circle at 30% 20%, #38bdf8 0, #2563eb 35%, #4f46e5 100%);
-      box-shadow: 0 0 18px rgba(56, 189, 248, 0.8);
+      background: radial-gradient(circle at 30% 30%, #38bdf8 0, #2563eb 38%, #4f46e5 100%);
+      box-shadow: 0 0 20px rgba(56,189,248,0.7);
     }
 
     .brand-title {
       font-size: 13px;
-      letter-spacing: 0.14em;
+      letter-spacing: .14em;
       text-transform: uppercase;
-      color: var(--text-muted);
+      color: var(--muted);
     }
 
-    .shell {
-      position: relative;
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: start;
     }
 
-    .shell::before {
-      content: "";
-      position: absolute;
-      inset: -80px;
-      background:
-        radial-gradient(circle at 10% 0, rgba(59,130,246,0.16) 0, transparent 55%),
-        radial-gradient(circle at 120% 120%, rgba(129,140,248,0.18) 0, transparent 55%);
-      opacity: 0.9;
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border-radius: var(--radius-xl);
+    .panel {
+      background: var(--card);
       border: 1px solid var(--card-border);
-      box-shadow: var(--card-shadow);
-      padding: 26px 22px 22px;
-      backdrop-filter: blur(20px) saturate(140%);
-      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      padding: 18px;
     }
 
-    @media (min-width: 640px) {
-      .card {
-        padding: 30px 28px 26px;
-      }
+    .hero-card {
+      padding: 20px;
     }
 
-    .card-header {
-      margin-bottom: 18px;
-    }
-
-    .title-row {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 12px;
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--primary);
+      background: rgba(37,99,235,0.10);
+      border: 1px solid rgba(37,99,235,0.18);
+      border-radius: 999px;
+      padding: 6px 10px;
     }
 
     h1 {
-      margin: 0;
-      font-size: 22px;
-      font-weight: 650;
-      letter-spacing: 0.03em;
-    }
-
-    .badge {
-      font-size: 10px;
-      padding: 3px 8px;
-      border-radius: 999px;
-      background: var(--primary-soft);
-      color: #1d4ed8;
-      border: 1px solid rgba(129, 140, 248, 0.35);
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      white-space: nowrap;
+      margin: 12px 0 8px;
+      font-size: 28px;
+      line-height: 1.18;
+      letter-spacing: -0.02em;
     }
 
     .subtitle {
-      margin: 6px 0 0;
+      margin: 0;
+      color: var(--sub);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .tips {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .tip {
+      padding: 12px;
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,0.45);
+      border: 1px solid rgba(148,163,184,0.18);
+    }
+
+    .tip strong {
+      display: block;
+      margin-bottom: 6px;
       font-size: 13px;
-      color: var(--text-sub);
+    }
+
+    .tip span {
+      color: var(--sub);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .form-card {
+      padding: 18px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .section-head span {
+      font-size: 12px;
+      color: var(--sub);
+    }
+
+    .mode-switch {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 6px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.55);
+      border: 1px solid rgba(148,163,184,0.20);
+      margin-bottom: 14px;
+    }
+
+    .mode-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 11px 10px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--sub);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .mode-btn.active {
+      color: #fff;
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+      box-shadow: 0 10px 22px rgba(37,99,235,0.22);
     }
 
     .form {
-      margin-top: 16px;
-      display: flex;
-      flex-direction: column;
+      display: grid;
       gap: 14px;
     }
 
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
     .field {
-      display: flex;
-      flex-direction: column;
+      display: grid;
       gap: 6px;
     }
 
     label {
       font-size: 12px;
-      font-weight: 500;
-      color: var(--text-sub);
+      font-weight: 600;
+      color: var(--sub);
     }
 
     input[type="url"],
     input[type="text"],
+    input[type="file"],
     textarea {
       width: 100%;
-      padding: 11px 12px;
-      font-size: 14px;
+      border: 1px solid rgba(148,163,184,0.45);
+      background: rgba(255,255,255,0.92);
+      color: var(--text);
       border-radius: var(--radius-md);
-      border: 1px solid var(--input-border);
-      background: var(--input-bg);
-      color: var(--text-main);
+      padding: 12px 13px;
+      font-size: 14px;
       outline: none;
-      transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, transform 0.06s ease;
       font-family: inherit;
+      transition: .16s border-color ease, .16s box-shadow ease, .16s transform ease;
     }
 
-    input::placeholder,
-    textarea::placeholder {
-      color: var(--text-muted);
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+      line-height: 1.65;
     }
 
     input:focus,
     textarea:focus {
       border-color: var(--primary);
-      box-shadow:
-        0 0 0 1px var(--primary-border),
-        0 0 0 6px var(--input-focus-ring);
+      box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
       transform: translateY(-0.5px);
     }
 
-    textarea {
-      min-height: var(--textarea-min-height);
-      resize: vertical;
-      line-height: 1.6;
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.55;
     }
 
-    .inline-row { display: flex; gap: 10px; flex-wrap: wrap; }
-    .inline-row > .field { flex: 1; min-width: 0; }
-
-    .mode-switch {
+    .actions {
       display: flex;
       gap: 10px;
-      padding: 4px;
-      border-radius: 14px;
-      background: rgba(255,255,255,0.45);
-      border: 1px solid rgba(148,163,184,0.25);
+      flex-wrap: wrap;
+      margin-top: 2px;
     }
 
-    .mode-btn {
-      flex: 1;
+    .primary-btn,
+    .copy-btn {
       border: none;
-      border-radius: 10px;
-      padding: 10px 12px;
       cursor: pointer;
-      background: transparent;
-      color: var(--text-sub);
+      border-radius: 14px;
+      padding: 13px 16px;
       font-size: 14px;
-      font-weight: 600;
-    }
-
-    .mode-btn.active {
+      font-weight: 700;
       color: #fff;
-      background-image: linear-gradient(90deg, #2563eb, #4f46e5);
-      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
     }
 
     .primary-btn {
-      margin-top: 6px;
-      width: 100%;
-      padding: 13px 14px;
-      border-radius: var(--radius-lg);
-      border: none;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-align: center;
-      color: #ffffff;
-      background-image: linear-gradient(90deg, var(--button-primary-from), var(--button-primary-to));
-      box-shadow: var(--button-primary-shadow);
-      transform: translateY(0);
-      transition:
-        box-shadow 0.18s ease,
-        transform 0.18s ease,
-        filter 0.18s ease,
-        opacity 0.18s ease;
-    }
-
-    .primary-btn:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.04);
-      box-shadow: 0 18px 38px rgba(37, 99, 235, 0.45);
-    }
-
-    .primary-btn:active {
-      transform: translateY(0);
-      box-shadow: 0 10px 24px rgba(30, 64, 175, 0.6);
-      filter: brightness(0.97);
-    }
-
-    .primary-btn:disabled {
-      cursor: default;
-      opacity: 0.65;
-      box-shadow: none;
-      filter: grayscale(0.1);
-    }
-
-    .result {
-      margin-top: 18px;
-      padding: 14px 12px 12px;
-      border-radius: var(--radius-lg);
-      background: var(--result-bg);
-      border: 1px solid var(--result-border);
-      display: none;
-    }
-
-    .result-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-
-    .result-link {
-      font-weight: 650;
-      font-size: 14px;
-      color: var(--primary);
-      word-break: break-all;
-      margin-bottom: 10px;
+      flex: 1;
+      min-width: 160px;
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+      box-shadow: 0 14px 30px rgba(37,99,235,0.25);
     }
 
     .copy-btn {
       width: 100%;
-      padding: 10px 12px;
-      border-radius: var(--radius-md);
-      border: none;
-      cursor: pointer;
+      background: linear-gradient(90deg, #16a34a, #22c55e);
+      box-shadow: 0 12px 26px rgba(34,197,94,0.24);
+    }
+
+    .primary-btn:disabled,
+    .copy-btn:disabled {
+      opacity: .65;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .result {
+      display: none;
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(248,250,252,0.9);
+      border: 1px solid rgba(148,163,184,0.28);
+    }
+
+    .result-label {
+      font-size: 11px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .result-link {
       font-size: 14px;
-      font-weight: 550;
-      color: #ffffff;
-      background-image: linear-gradient(90deg, var(--button-accent-from), var(--button-accent-to));
-      box-shadow: var(--button-accent-shadow);
-      transition: box-shadow 0.18s ease, transform 0.18s ease, filter 0.18s ease;
-    }
-
-    .copy-btn:hover {
-      transform: translateY(-0.5px);
-      filter: brightness(1.03);
-      box-shadow: 0 16px 34px rgba(34, 197, 94, 0.45);
-    }
-
-    .copy-btn:active {
-      transform: translateY(0);
-      box-shadow: 0 10px 22px rgba(22, 163, 74, 0.65);
-      filter: brightness(0.98);
+      line-height: 1.7;
+      word-break: break-all;
+      color: var(--primary);
+      font-weight: 700;
+      margin-bottom: 10px;
     }
 
     .footnote {
-      margin-top: 12px;
-      font-size: 11px;
-      color: var(--text-muted);
+      margin-top: 14px;
       text-align: center;
-      user-select: none;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
     }
 
-    @media (max-width: 480px) {
-      .card { border-radius: 20px; }
-      h1 { font-size: 20px; }
+    @media (min-width: 860px) {
+      body { padding: 24px; }
+      .hero {
+        grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr);
+      }
+      .hero-card, .form-card { padding: 24px; }
+      .grid-2 { grid-template-columns: 1fr 1fr; }
+      h1 { font-size: 34px; }
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+      .panel { border-radius: 20px; }
+      .hero-card, .form-card { padding: 16px; }
+      h1 { font-size: 24px; }
+      .tips { grid-template-columns: 1fr; }
+      .mode-switch { gap: 6px; padding: 5px; }
+      .mode-btn { font-size: 13px; padding: 10px 8px; }
+      .section-head { align-items: start; flex-direction: column; }
     }
   </style>
 </head>
 <body>
-  <div class="page">
+  <div class="wrap">
     <header class="brand">
       <div class="brand-dot"></div>
-      <span class="brand-title">SHORT URL SERVICE</span>
+      <div class="brand-title">CFLink Share Center</div>
     </header>
 
-    <main class="shell">
-      <section class="card">
-        <div class="card-header">
-          <div class="title-row">
-            <h1>短链接生成</h1>
-            <span class="badge">LIQUID GLASS UI</span>
+    <main class="hero">
+      <section class="panel hero-card">
+        <div class="eyebrow">Cloudflare Workers + KV + R2</div>
+        <h1>一个链接，分享文字、跳转地址或文件</h1>
+        <p class="subtitle">手机端操作要顺手，电脑端排版也要清楚。这一版把入口、模式切换和表单层级都收紧了，减少空白和视觉噪音，专注“选类型 → 填内容 → 生成链接”。</p>
+        <div class="tips">
+          <div class="tip">
+            <strong>链接模式</strong>
+            <span>输入长链接，生成短链跳转。</span>
           </div>
-          <p class="subtitle">
-          无需登陆，适用于分享、重定向和日常使用。为了防止域名屏蔽
-          <a href="https://sink.lily.lat/link-fb" target="_blank" rel="noopener noreferrer">点击获取新域名</a>
-        </p>
-        </div>
-
-        <div class="form">
-          <div class="field">
-            <label>内容类型</label>
-            <div class="mode-switch">
-              <button id="modeUrlBtn" class="mode-btn active" type="button" onclick="setMode('url')">链接</button>
-              <button id="modeTextBtn" class="mode-btn" type="button" onclick="setMode('text')">文本</button>
-              <button id="modeFileBtn" class="mode-btn" type="button" onclick="setMode('file')">文件</button>
-            </div>
+          <div class="tip">
+            <strong>文本模式</strong>
+            <span>支持标题、复制内容和基础 Markdown。</span>
           </div>
-
-          <div class="field" id="urlField">
-            <label for="u">长链接</label>
-            <input
-              type="url"
-              id="u"
-              placeholder="例如：https://example.com/v1/2026/long-url...."
-              autocomplete="off"
-            />
+          <div class="tip">
+            <strong>文件模式</strong>
+            <span>上传到 R2，支持预览与下载。</span>
           </div>
-
-          <div class="field" id="textField" style="display:none;">
-            <label for="tt">文本页标题（可选）</label>
-            <input
-              type="text"
-              id="tt"
-              placeholder="例如：临时公告 / 使用说明 / 今日笔记"
-              autocomplete="off"
-            />
-            <label for="t">文本内容</label>
-            <textarea
-              id="t"
-              placeholder="支持基础 Markdown：标题、列表、粗体、斜体、行内代码、链接。"
-            ></textarea>
-          </div>
-
-          <div class="field" id="fileField" style="display:none;">
-            <label for="ft">文件标题（可选）</label>
-            <input
-              type="text"
-              id="ft"
-              placeholder="例如：安装包 / 海报 / 使用文档"
-              autocomplete="off"
-            />
-            <label for="f">选择文件</label>
-            <input type="file" id="f" />
-          </div>
-
-          <div class="inline-row">
-            <div class="field">
-              <label for="k">自定义后缀（可选）</label>
-              <input
-                type="text"
-                id="k"
-                placeholder="例如：good 或者 worker-2026"
-                autocomplete="off"
-              />
-            </div>
-          </div>
-
-          <button id="btn" class="primary-btn" onclick="s()">立即生成</button>
-        </div>
-
-        <div id="res" class="result">
-          <div class="result-label">SHARE LINK</div>
-          <div id="link" class="result-link"></div>
-          <button class="copy-btn" onclick="cp(this)">点击复制</button>
         </div>
       </section>
 
-      <footer class="footnote">
-        通过 Cloudflare 驱动 · 基于 KV 持久化存储 · 后缀链接永久有效
-      </footer>
+      <section class="panel form-card">
+        <div class="section-head">
+          <h2>创建分享</h2>
+          <span>支持自定义后缀</span>
+        </div>
+
+        <div class="mode-switch">
+          <button id="modeUrlBtn" class="mode-btn active" type="button" onclick="setMode('url')">链接</button>
+          <button id="modeTextBtn" class="mode-btn" type="button" onclick="setMode('text')">文本</button>
+          <button id="modeFileBtn" class="mode-btn" type="button" onclick="setMode('file')">文件</button>
+        </div>
+
+        <div class="form">
+          <div class="field" id="urlField">
+            <label for="u">长链接</label>
+            <input type="url" id="u" placeholder="例如：https://example.com/article/2026/hello" autocomplete="off" />
+            <div class="hint">输入完整的 http 或 https 地址。</div>
+          </div>
+
+          <div id="textField" style="display:none;">
+            <div class="field">
+              <label for="tt">文本页标题（可选）</label>
+              <input type="text" id="tt" placeholder="例如：临时公告 / 使用说明 / 今日笔记" autocomplete="off" />
+            </div>
+            <div class="field" style="margin-top:12px;">
+              <label for="t">文本内容</label>
+              <textarea id="t" placeholder="支持基础 Markdown：标题、列表、粗体、斜体、行内代码、链接。"></textarea>
+            </div>
+          </div>
+
+          <div id="fileField" style="display:none;">
+            <div class="field">
+              <label for="ft">文件标题（可选）</label>
+              <input type="text" id="ft" placeholder="例如：安装包 / 海报 / 使用文档" autocomplete="off" />
+            </div>
+            <div class="field" style="margin-top:12px;">
+              <label for="f">选择文件</label>
+              <input type="file" id="f" />
+              <div class="hint">图片、PDF、文本、音视频更适合在线预览，其他格式也可下载分享。</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="k">自定义后缀（可选）</label>
+              <input type="text" id="k" placeholder="例如：good / notes-2026 / setup" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label>当前模式说明</label>
+              <div class="hint" id="modeHint">生成一个跳转到目标地址的短链。</div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="btn" class="primary-btn" onclick="s()">立即生成</button>
+          </div>
+        </div>
+
+        <div id="res" class="result">
+          <div class="result-label">Share Link</div>
+          <div id="link" class="result-link"></div>
+          <button class="copy-btn" onclick="cp(this)">复制链接</button>
+        </div>
+      </section>
     </main>
+
+    <footer class="footnote">
+      基于 Cloudflare Workers、KV 与 R2 持久化存储 · 统一分享入口 · 手机与桌面端响应式适配
+    </footer>
   </div>
 
   <script>
@@ -1443,12 +1437,20 @@ const htmlIndex = `<!DOCTYPE html>
       const urlField = document.getElementById('urlField');
       const textField = document.getElementById('textField');
       const fileField = document.getElementById('fileField');
+      const modeHint = document.getElementById('modeHint');
       const urlBtn = document.getElementById('modeUrlBtn');
       const textBtn = document.getElementById('modeTextBtn');
       const fileBtn = document.getElementById('modeFileBtn');
       if (urlField) urlField.style.display = mode === 'url' ? 'block' : 'none';
       if (textField) textField.style.display = mode === 'text' ? 'block' : 'none';
       if (fileField) fileField.style.display = mode === 'file' ? 'block' : 'none';
+      if (modeHint) {
+        modeHint.textContent = mode === 'url'
+          ? '生成一个跳转到目标地址的短链。'
+          : mode === 'text'
+            ? '生成一个可直接展示文本内容的分享页。'
+            : '上传文件到 R2，并生成可预览、可下载的分享链接。';
+      }
       if (urlBtn) urlBtn.classList.toggle('active', mode === 'url');
       if (textBtn) textBtn.classList.toggle('active', mode === 'text');
       if (fileBtn) fileBtn.classList.toggle('active', mode === 'file');
@@ -1491,6 +1493,7 @@ const htmlIndex = `<!DOCTYPE html>
               return form;
             })()
           : JSON.stringify({ type: mode, url: u, text: t, title: tt, key: k });
+
         const res = await fetch('/', {
           method: 'POST',
           body
@@ -1513,15 +1516,15 @@ const htmlIndex = `<!DOCTYPE html>
       }
     }
 
-    function cp(b) {
+    function cp(button) {
       const text = document.getElementById('link').textContent;
       if (!text) return;
       navigator.clipboard.writeText(text).then(function () {
-        const old = b.innerText;
-        b.innerText = '已复制';
+        const old = button.innerText;
+        button.innerText = '已复制';
         setTimeout(function () {
-          b.innerText = old;
-        }, 2000);
+          button.innerText = old;
+        }, 1800);
       });
     }
   </script>

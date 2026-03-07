@@ -59,27 +59,45 @@ export const htmlIndex = `<!DOCTYPE html>
       }
 
       .chip {
-        background: rgba(15,23,42,0.62);
-        border-color: rgba(100,116,139,0.34);
-        color: rgba(226,232,240,0.96);
+        background: rgba(15,23,42,0.62) !important;
+        border-color: rgba(100,116,139,0.34) !important;
+        color: rgba(226,232,240,0.96) !important;
+      }
+
+      .admin-link,
+      .ghost-btn,
+      .copy-btn,
+      .open-btn {
+        background: rgba(15,23,42,0.68) !important;
+        color: rgba(226,232,240,0.96) !important;
+        border-color: rgba(100,116,139,0.34) !important;
+        -webkit-text-fill-color: rgba(226,232,240,0.96) !important;
       }
 
       .mode-switch {
-        background: rgba(15,23,42,0.54);
-        border-color: rgba(71,85,105,0.44);
+        background: rgba(15,23,42,0.54) !important;
+        border-color: rgba(71,85,105,0.44) !important;
       }
 
       .mode-btn {
-        color: rgba(203,213,225,0.92);
+        background: rgba(15,23,42,0.02) !important;
+        color: rgba(203,213,225,0.92) !important;
+        -webkit-text-fill-color: rgba(203,213,225,0.92) !important;
+      }
+
+      .mode-btn.active {
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
       }
 
       .mode-btn:not(.active):hover {
-        background: rgba(30,41,59,0.72);
+        background: rgba(30,41,59,0.72) !important;
       }
 
-      .mode-meta {
-        background: rgba(15,23,42,0.66);
-        border-color: rgba(100,116,139,0.34);
+      .mode-meta,
+      .capability {
+        background: rgba(15,23,42,0.66) !important;
+        border-color: rgba(100,116,139,0.34) !important;
       }
 
       .file-shell {
@@ -89,14 +107,16 @@ export const htmlIndex = `<!DOCTYPE html>
 
       .file-copy span,
       .mode-desc,
-      .hero-note {
-        color: rgba(148,163,184,0.94);
+      .hero-note,
+      .capability p {
+        color: rgba(148,163,184,0.94) !important;
       }
 
       .file-pill {
-        background: rgba(37,99,235,0.16);
-        color: #bfdbfe;
+        background: rgba(37,99,235,0.16) !important;
+        color: #bfdbfe !important;
         border: 1px solid rgba(96,165,250,0.22);
+        -webkit-text-fill-color: #bfdbfe !important;
       }
 
       .input::placeholder,

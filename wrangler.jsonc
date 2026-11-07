@@ -23,10 +23,9 @@
   ],
   "vars": {
     "ADMIN_PATH": "/admin",
-    "ADMIN_PASS": "change-this-password",
     "LONG_DOMAIN_BLACKLIST": "placeholder.invalid",
     "SUFFIX_BLACKLIST": "admin,login,api",
-    "R2_ACCOUNT_ID": "YOUR_CLOUDFLARE_ACCOUNT_ID",
+    "R2_ACCOUNT_ID": "c89d5b46d0bfd8edb3970c985da57b0a",
     "R2_BUCKET_NAME": "cflink-files"
   }
 }

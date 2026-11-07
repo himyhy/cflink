@@ -4,6 +4,7 @@ import { renderRichMarkdown, renderMathInHtml, extractMathPlaceholders, restoreM
 import { htmlLogin, htmlAdmin } from "./pages/admin.js";
 import { htmlIndex } from "./pages/home.js";
 import { renderErrorPage } from "./pages/error.js";
+import { AwsClient } from "aws4fetch";
 import { marked } from "marked";
 import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
@@ -15,6 +16,30 @@ const DEFAULT_ADMIN_PASS = "change-this-password";
 // 再配合下面的流式写入，避免小文件也被内存拖垮。
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
 const MAX_FILE_SIZE_LABEL = "100 MB";
+// 大文件（>100 MB）预签名分片上传：R2 分片单对象最大 5 TiB，这里先把分享服务上限定在 5 GiB，
+// 够个人用，也防存储失控；想放宽只改 MAX_LARGE_FILE_SIZE（前端同名常量和 README 要同步改）。
+const MAX_LARGE_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GiB
+const LARGE_PART_SIZE = 10 * 1024 * 1024; // 10 MiB：R2 要求除最后一片外每片 ≥5 MiB，10 MiB 断点续传粒度也够细
+const LARGE_PART_URL_EXPIRES = 3600; // 每个分片的预签名地址有效 1 小时；上传前现取现用，过期重取即可
+
+function getR2PresignConfig() {
+  const accountId = (typeof R2_ACCOUNT_ID === "string" ? R2_ACCOUNT_ID : "").trim();
+  const bucket = (typeof R2_BUCKET_NAME === "string" && R2_BUCKET_NAME.trim() ? R2_BUCKET_NAME.trim() : "cflink-files");
+  const accessKeyId = (typeof R2_ACCESS_KEY_ID === "string" ? R2_ACCESS_KEY_ID : "").trim();
+  const secret = (typeof R2_SECRET_ACCESS_KEY === "string" ? R2_SECRET_ACCESS_KEY : "").trim();
+  if (!accountId || accountId === "YOUR_CLOUDFLARE_ACCOUNT_ID" || !accessKeyId || !secret) return null;
+  return { accountId, bucket, accessKeyId, secret };
+}
+
+function encodeR2Key(key) {
+  return String(key || "").split("/").map((seg) => encodeURIComponent(seg)).join("/");
+}
+
+function normalizeEtag(etag) {
+  let v = String(etag || "").trim();
+  if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1);
+  return v;
+}
 
 function decodeHeaderValue(v) {
   try { return decodeURIComponent(String(v || "")); } catch { return String(v || ""); }
@@ -470,6 +495,177 @@ async function handleRequest(request) {
     invalidateAdminListCache();
 
     return new Response("OK", { headers: { "cache-control": "no-store" } });
+  }
+
+  // ---- 大文件预签名分片上传 API（>100 MB，不走 Worker 请求体）----
+  // POST /api/upload/initiate | /part-url | /complete | /abort，均为小 JSON 入参。
+  // 流程：initiate（Worker 用 R2 绑定创建分片上传，返回 uploadId）→
+  // part-url（Worker 用 R2 Token 签分片 PUT 地址，浏览器直传 R2，绕过 100 MB 限制）→
+  // complete（Worker 用绑定 resume + complete 合并，FILES.head() 验大小后写 KV）→ 返回短链。
+  // 分片状态（uploadId、已传分片的 ETag）由浏览器存在 localStorage，刷新/断网后可续传；
+  // Worker 本身不存会话，complete 时以前端传回的 parts 为准。未完成的分片上传 R2 会在 7 天后自动清理。
+  if (pathname.startsWith("/api/upload/") && request.method === "POST") {
+    const largeBody = await request.json().catch(() => ({}));
+    const largeCfg = getR2PresignConfig();
+    const needPresignConfig = () => new Response(JSON.stringify({ error: "大文件直传未配置：请在 Worker 设置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY，并给 R2 桶配 CORS（见 README 大文件一节）" }), {
+      status: 501,
+      headers: jsonHeaders,
+    });
+
+    if (pathname === "/api/upload/initiate") {
+      const filename = typeof largeBody?.filename === "string" ? largeBody.filename.trim() : "";
+      const size = Number(largeBody?.size || 0);
+      const contentType = typeof largeBody?.contentType === "string" && largeBody.contentType.trim() ? largeBody.contentType.trim() : "application/octet-stream";
+      const title = typeof largeBody?.title === "string" ? largeBody.title.trim() : "";
+      const customKey = typeof largeBody?.key === "string" ? largeBody.key.trim() : "";
+      if (!filename) {
+        return new Response(JSON.stringify({ error: "文件名不能为空" }), { status: 400, headers: jsonHeaders });
+      }
+      if (!Number.isFinite(size) || size <= 0) {
+        return new Response(JSON.stringify({ error: "文件大小无效" }), { status: 400, headers: jsonHeaders });
+      }
+      if (size <= MAX_FILE_SIZE) {
+        return new Response(JSON.stringify({ error: "100 MB 及以下请用普通上传" }), { status: 400, headers: jsonHeaders });
+      }
+      if (size > MAX_LARGE_FILE_SIZE) {
+        return new Response(JSON.stringify({ error: "文件超过 5 GB 上限" }), { status: 413, headers: jsonHeaders });
+      }
+      if (!largeCfg) return needPresignConfig();
+      if (customKey && isSuffixBlocked(customKey, suffixBlacklist)) {
+        return new Response(JSON.stringify({ error: "该后缀已被占用" }), { status: 409, headers: jsonHeaders });
+      }
+      if (customKey && (await LINKS.get(customKey))) {
+        return new Response(JSON.stringify({ error: "该后缀已被占用" }), { status: 409, headers: jsonHeaders });
+      }
+      let shortKey = customKey || Math.random().toString(36).substring(2, 8);
+      if (!customKey && suffixBlacklist.size) {
+        let guard = 0;
+        while (isSuffixBlocked(shortKey, suffixBlacklist) && guard < 200) {
+          shortKey = Math.random().toString(36).substring(2, 8);
+          guard++;
+        }
+        if (isSuffixBlocked(shortKey, suffixBlacklist)) {
+          return new Response(JSON.stringify({ error: "生成失败，请稍后重试" }), { status: 500, headers: jsonHeaders });
+        }
+      }
+      const totalParts = Math.ceil(size / LARGE_PART_SIZE);
+      if (totalParts > 10000) {
+        return new Response(JSON.stringify({ error: "文件过大，分片数超过 10000" }), { status: 413, headers: jsonHeaders });
+      }
+      const fileExt = filename.includes(".") ? "." + filename.split(".").pop() : "";
+      const objectKey = "uploads/" + Date.now() + "-" + Math.random().toString(36).slice(2, 10) + fileExt;
+      let upload;
+      try {
+        upload = await FILES.createMultipartUpload(objectKey, {
+          httpMetadata: {
+            contentType,
+            contentDisposition: 'inline; filename="' + encodeURIComponent(filename) + '"',
+          },
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "创建分片上传失败，请稍后重试" }), { status: 500, headers: jsonHeaders });
+      }
+      return new Response(JSON.stringify({
+        uploadId: upload.uploadId,
+        objectKey,
+        shortKey,
+        partSize: LARGE_PART_SIZE,
+        totalParts,
+        maxFileSize: MAX_LARGE_FILE_SIZE,
+      }), { headers: jsonHeaders });
+    }
+
+    if (pathname === "/api/upload/part-url") {
+      const uploadId = typeof largeBody?.uploadId === "string" ? largeBody.uploadId.trim() : "";
+      const objectKey = typeof largeBody?.objectKey === "string" ? largeBody.objectKey.trim() : "";
+      const partNumber = Number(largeBody?.partNumber || 0);
+      if (!uploadId || !objectKey || !Number.isInteger(partNumber) || partNumber < 1 || partNumber > 10000) {
+        return new Response(JSON.stringify({ error: "分片参数无效" }), { status: 400, headers: jsonHeaders });
+      }
+      if (!largeCfg) return needPresignConfig();
+      const client = new AwsClient({
+        accessKeyId: largeCfg.accessKeyId,
+        secretAccessKey: largeCfg.secret,
+        service: "s3",
+        region: "auto",
+      });
+      const url = new URL("https://" + largeCfg.accountId + ".r2.cloudflarestorage.com/" + largeCfg.bucket + "/" + encodeR2Key(objectKey));
+      url.searchParams.set("partNumber", String(partNumber));
+      url.searchParams.set("uploadId", uploadId);
+      url.searchParams.set("X-Amz-Expires", String(LARGE_PART_URL_EXPIRES));
+      const signed = await client.sign(new Request(url.toString(), { method: "PUT" }), { aws: { signQuery: true } });
+      return new Response(JSON.stringify({ url: signed.url, expiresIn: LARGE_PART_URL_EXPIRES }), { headers: jsonHeaders });
+    }
+
+    if (pathname === "/api/upload/complete") {
+      const uploadId = typeof largeBody?.uploadId === "string" ? largeBody.uploadId.trim() : "";
+      const objectKey = typeof largeBody?.objectKey === "string" ? largeBody.objectKey.trim() : "";
+      const shortKey = typeof largeBody?.shortKey === "string" ? largeBody.shortKey.trim() : "";
+      const filename = typeof largeBody?.filename === "string" ? largeBody.filename.trim() : "download";
+      const contentType = typeof largeBody?.contentType === "string" && largeBody.contentType.trim() ? largeBody.contentType.trim() : "application/octet-stream";
+      const size = Number(largeBody?.size || 0);
+      const title = typeof largeBody?.title === "string" ? largeBody.title.trim() : "";
+      const rawParts = Array.isArray(largeBody?.parts) ? largeBody.parts : [];
+      if (!uploadId || !objectKey || !shortKey || !rawParts.length) {
+        return new Response(JSON.stringify({ error: "合并参数不完整" }), { status: 400, headers: jsonHeaders });
+      }
+      if (!Number.isFinite(size) || size <= 0 || size > MAX_LARGE_FILE_SIZE) {
+        return new Response(JSON.stringify({ error: "文件大小无效" }), { status: 400, headers: jsonHeaders });
+      }
+      const totalParts = Math.ceil(size / LARGE_PART_SIZE);
+      if (rawParts.length !== totalParts) {
+        return new Response(JSON.stringify({ error: "分片不完整：已传 " + rawParts.length + " / " + totalParts + " 片" }), { status: 400, headers: jsonHeaders });
+      }
+      const parts = rawParts
+        .map((p) => ({ partNumber: Number(p?.partNumber || 0), etag: normalizeEtag(p?.etag || "") }))
+        .filter((p) => Number.isInteger(p.partNumber) && p.partNumber >= 1 && p.partNumber <= 10000 && p.etag)
+        .sort((a, b) => a.partNumber - b.partNumber);
+      if (parts.length !== totalParts || parts.some((p, i) => p.partNumber !== i + 1)) {
+        return new Response(JSON.stringify({ error: "分片编号不连续或 ETag 缺失，请重新上传缺失的分片" }), { status: 400, headers: jsonHeaders });
+      }
+      if (isSuffixBlocked(shortKey, suffixBlacklist)) {
+        return new Response(JSON.stringify({ error: "该后缀已被占用" }), { status: 409, headers: jsonHeaders });
+      }
+      if (await LINKS.get(shortKey)) {
+        return new Response(JSON.stringify({ error: "该后缀已被占用" }), { status: 409, headers: jsonHeaders });
+      }
+      try {
+        const upload = FILES.resumeMultipartUpload(objectKey, uploadId);
+        await upload.complete(parts);
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "合并分片失败，uploadId 可能已过期（7 天未完成会自动清理），请重新上传" }), { status: 500, headers: jsonHeaders });
+      }
+      const head = await FILES.head(objectKey).catch(() => null);
+      const actualSize = Number(head?.size || 0);
+      if (actualSize && actualSize !== size) {
+        await FILES.delete(objectKey).catch(() => {});
+        return new Response(JSON.stringify({ error: "大小校验失败：实际 " + actualSize + "，声明 " + size + "，已删除不完整对象" }), { status: 500, headers: jsonHeaders });
+      }
+      await LINKS.put(shortKey, encodeStoredValue({
+        type: "file",
+        title,
+        objectKey,
+        filename,
+        contentType,
+        size: actualSize || size,
+      }), { metadata: { createdAt: Date.now() } });
+      invalidateAdminListCache();
+      return new Response(JSON.stringify({ key: "/" + shortKey, type: "file" }), { headers: jsonHeaders });
+    }
+
+    if (pathname === "/api/upload/abort") {
+      const uploadId = typeof largeBody?.uploadId === "string" ? largeBody.uploadId.trim() : "";
+      const objectKey = typeof largeBody?.objectKey === "string" ? largeBody.objectKey.trim() : "";
+      if (!uploadId || !objectKey) {
+        return new Response(JSON.stringify({ error: "参数不完整" }), { status: 400, headers: jsonHeaders });
+      }
+      try {
+        await FILES.resumeMultipartUpload(objectKey, uploadId).abort();
+      } catch (e) {}
+      return new Response(JSON.stringify({ ok: true }), { headers: jsonHeaders });
+    }
+
+    return new Response(JSON.stringify({ error: "未知接口" }), { status: 404, headers: jsonHeaders });
   }
 
   // 生成短链 / 文本页 / 文件分享（全部永久）

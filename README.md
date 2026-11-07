@@ -59,9 +59,30 @@
   - 文件上传分享（R2 存储，支持预览与下载，单文件上限 100 MB）
 
 ### 文件上传上限
-- 单文件上限 **100 MB**：Cloudflare Free/Pro 单次请求体硬上限就是 100 MB，超过会在边缘直接返回 413。
-- 上传走流式直传（前端把文件直接当请求体发，后端 `request.body` 流式写 R2），不再全量读进 Worker 内存；旧写法 `formData() + arrayBuffer()` 会在 128 MB 内存里存多份，20–50 MB 就可能爆内存卡死。
-- 超过 100 MB 请先压缩或分卷；想传更大文件需用 R2 预签名直传（不在当前版本内）。
+- **100 MB 及以下**：流式直传（前端把文件直接当请求体发，后端 `request.body` 流式写 R2），不再全量读进 Worker 内存。Cloudflare Free/Pro 单次请求体硬上限就是 100 MB，超过会在边缘直接返回 413。
+- **100 MB–5 GB**：预签名分片直传。浏览器先向 Worker 要分片上传会话（`POST /api/upload/initiate`），Worker 用 R2 绑定创建分片上传；再按片向 Worker 要预签名 PUT 地址（`POST /api/upload/part-url`），浏览器直传 R2，每片 10 MB、3 路并发、每片失败重试 3 次；传完调 `POST /api/upload/complete` 合并，Worker 用绑定 `resumeMultipartUpload().complete()` 合并并用 `FILES.head()` 验大小后写 KV。断点续传：分片状态（uploadId、已传分片的 ETag）存在浏览器 localStorage，刷新、断网后重新选同一文件可续传；点“暂停”会保留已传分片，点“取消上传”会调 `POST /api/upload/abort` 清理。未完成的分片上传 R2 会在 7 天后自动清理。
+- **超过 5 GB**：请先压缩或分卷；上限是代码里的 `MAX_LARGE_FILE_SIZE`，改它要同步改前端同名常量。
+
+### 大文件分片直传配置（只在传 >100 MB 时需要）
+不配也能用：100 MB 及以下不受影响；>100 MB 没配会返回 501 并明说缺配置。
+
+1. **R2 API Token**：Cloudflare 控制台 → R2 → Manage R2 API Tokens → Create API Token，权限选 Object Read & Write，只勾 `cflink-files` 这个桶，记下 Access Key ID 和 Secret Access Key。**不要把这两个值写进仓库、不要发给任何人。**
+2. **Account ID**：同一页能看到 Account ID，填到 `wrangler.jsonc` 的 `R2_ACCOUNT_ID`（已留占位 `YOUR_CLOUDFLARE_ACCOUNT_ID`），桶名默认 `cflink-files`，在 `R2_BUCKET_NAME`。
+3. **Worker Secret**（二选一，推荐 wrangler）：
+   ```bash
+   npx wrangler secret put R2_ACCESS_KEY_ID
+   npx wrangler secret put R2_SECRET_ACCESS_KEY
+   ```
+   或在控制台 Workers → 你的 Worker → Settings → Variables → Add variable，选 Secret 类型填这两个名。本地开发用 `.dev.vars`，同样不要提交。
+4. **CORS**：浏览器直传 R2 必须配 CORS，否则 PUT 会被浏览器拦住。仓库里有模板 `r2-cors.json`，把 `AllowedOrigins` 里的 `https://YOUR-CFLINK-DOMAIN` 换成你的 cflink 域名（workers.dev 域名或自定义域名，只能填这一个，不要填 `*`），然后：
+   ```bash
+   npx wrangler r2 bucket cors set cflink-files --file r2-cors.json
+   ```
+   关键点：`ExposeHeaders` 必须含 `ETag`，前端靠它拿分片的 ETag 去合并；`AllowedMethods` 含 `PUT`。
+5. **重新部署**：`npm run deploy`。验证：传一个 120 MB 文件，应看到进度条走到 100% 并生成短链；再传一个 >5 GB 的文件，应直接提示超过 5 GB 上限。
+
+### 费用提醒
+R2 免费额度是每月 10 GB 存储、100 万次 Class A 操作、1000 万次 Class B 操作，下载不收费；超出按 $0.015/GB·月。常传大文件很容易超 10 GB，例如 20 个 500 MB 就是 10 GB。
 - 支持随机后缀
 - 支持自定义后缀
 

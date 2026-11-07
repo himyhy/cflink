@@ -1,0 +1,19 @@
+[
+  {
+    "AllowedOrigins": [
+      "https://YOUR-CFLINK-DOMAIN"
+    ],
+    "AllowedMethods": [
+      "PUT",
+      "GET",
+      "HEAD"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ],
+    "ExposeHeaders": [
+      "ETag"
+    ],
+    "MaxAgeSeconds": 3600
+  }
+]

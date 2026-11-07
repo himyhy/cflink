@@ -629,6 +629,15 @@ export const htmlIndex = `<!DOCTYPE html>
       border-color: rgba(37,99,235,0.18);
     }
 
+    .large-progress { margin-top: 12px; display: none; }
+    .large-progress.show { display: block; }
+    .large-progress-bar { height: 10px; border-radius: 999px; background: rgba(148,163,184,0.22); overflow: hidden; }
+    .large-progress-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--primary), var(--primary-2)); transition: width .2s ease; }
+    .large-progress-text { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .large-progress-actions { margin-top: 8px; display: flex; gap: 8px; }
+    .large-progress-actions button { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border-strong); background: rgba(255,255,255,0.6); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; }
+    .large-progress-actions button:disabled { opacity: .5; cursor: default; }
+
     .result {
       display: none;
       margin-top: 8px;
@@ -856,11 +865,19 @@ export const htmlIndex = `<!DOCTYPE html>
                   <div class="file-ui">
                     <div class="file-copy">
                       <strong id="fileLabel">选择一个文件</strong>
-                      <span id="fileHint">上传到 R2 后生成可访问链接；图片、PDF、文本、音视频更适合在线预览。单文件上限 100 MB。</span>
+                      <span id="fileHint">上传到 R2 后生成可访问链接；图片、PDF、文本、音视频更适合在线预览。100 MB 以内直传，100 MB–5 GB 走预签名分片直传。</span>
                     </div>
                     <div class="file-pill">选择文件</div>
                   </div>
                   <div id="fileMeta" class="file-meta"></div>
+                  <div id="largeProgress" class="large-progress">
+                    <div class="large-progress-bar"><div id="largeProgressFill" class="large-progress-fill"></div></div>
+                    <div id="largeProgressText" class="large-progress-text"></div>
+                    <div class="large-progress-actions">
+                      <button id="largePauseBtn" type="button">暂停</button>
+                      <button id="largeCancelBtn" type="button">取消上传</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -930,6 +947,14 @@ export const htmlIndex = `<!DOCTYPE html>
     // Cloudflare Free/Pro 单次请求体硬上限 100 MB，超过会在边缘直接 413；
     // 旧代码全量进内存，实际 20-50 MB 就可能卡死，所以这里先在前端拦住并明说。
     const MAX_FILE_SIZE = 100 * 1024 * 1024;
+    // 大文件分片：和后端 MAX_LARGE_FILE_SIZE / LARGE_PART_SIZE 保持一致。
+    // >100 MB 走预签名分片直传（浏览器直传 R2，不走 Worker），单文件上限 5 GB，每片 10 MB，3 路并发。
+    const MAX_LARGE_FILE_SIZE = 5 * 1024 * 1024 * 1024;
+    const LARGE_PART_SIZE = 10 * 1024 * 1024;
+    const LARGE_CONCURRENCY = 3;
+    const LARGE_STORAGE_KEY = 'cflink-large-upload-v1';
+    let largeUpload = null;
+    let largeXhrs = [];
 
     function formatBytes(size) {
       const value = Number(size) || 0;
@@ -990,7 +1015,7 @@ export const htmlIndex = `<!DOCTYPE html>
       if (!file) {
         shell.classList.remove('is-active');
         label.textContent = '选择一个文件';
-        hint.textContent = '上传到 R2 后生成可访问链接；图片、PDF、文本、音视频更适合在线预览。单文件上限 100 MB。';
+        hint.textContent = '上传到 R2 后生成可访问链接；图片、PDF、文本、音视频更适合在线预览。100 MB 以内直传，100 MB–5 GB 走预签名分片直传。';
         meta.style.display = 'none';
         meta.textContent = '';
         return;
@@ -998,13 +1023,18 @@ export const htmlIndex = `<!DOCTYPE html>
 
       shell.classList.add('is-active');
       label.textContent = file.name || '已选择文件';
-      if (file.size > MAX_FILE_SIZE) {
-        hint.textContent = '这个文件超过 100 MB 上限，传不上去，请压缩或分卷后再传。';
+      if (file.size > MAX_LARGE_FILE_SIZE) {
+        hint.textContent = '这个文件超过 5 GB 上限，传不上去，请压缩或分卷后再传。';
+      } else if (file.size > MAX_FILE_SIZE) {
+        const resumed = loadLargeSession(file);
+        hint.textContent = resumed
+          ? '大文件走预签名分片直传，发现未完成的上传（已传 ' + resumed.parts.length + ' / ' + resumed.totalParts + ' 片），点上传继续。'
+          : '大文件走预签名分片直传（10 MB 一片，支持断点续传），点上传开始。';
       } else {
         hint.textContent = '文件已就绪，生成后即可分享。';
       }
       meta.style.display = 'block';
-      meta.innerHTML = '大小：' + escapeHtml(formatBytes(file.size || 0)) + '<br>类型：' + escapeHtml(file.type || 'application/octet-stream') + (file.size > MAX_FILE_SIZE ? '<br>已超过 100 MB 上限' : '');
+      meta.innerHTML = '大小：' + escapeHtml(formatBytes(file.size || 0)) + '<br>类型：' + escapeHtml(file.type || 'application/octet-stream') + (file.size > MAX_LARGE_FILE_SIZE ? '<br>已超过 5 GB 上限' : file.size > MAX_FILE_SIZE ? '<br>大文件分片直传，上限 5 GB' : '');
     }
 
     function setMode(nextMode) {
@@ -1048,6 +1078,270 @@ export const htmlIndex = `<!DOCTYPE html>
       resetResult();
     }
 
+
+    // ---- 大文件预签名分片上传（>100 MB）----
+    // 分片状态存在 localStorage：刷新、断网、关页面后，重新选同一文件（同名、同大小、同修改时间）
+    // 就能续传已完成的分片，不用从头再传。未完成的分片上传 R2 会在 7 天后自动清理。
+    function largeFingerprint(file) {
+      return (file.name || '') + '|' + (file.size || 0) + '|' + (file.lastModified || 0);
+    }
+
+    function loadLargeSession(file) {
+      try {
+        const raw = localStorage.getItem(LARGE_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || parsed.fingerprint !== largeFingerprint(file)) return null;
+        if (parsed.size !== file.size || !parsed.uploadId || !parsed.objectKey || !parsed.shortKey) return null;
+        if (!Array.isArray(parsed.parts)) parsed.parts = [];
+        return parsed;
+      } catch (e) { return null; }
+    }
+
+    function saveLargeSession() {
+      if (!largeUpload || !largeUpload.session) return;
+      try {
+        const copy = {};
+        copy.fingerprint = largeUpload.session.fingerprint;
+        copy.uploadId = largeUpload.session.uploadId;
+        copy.objectKey = largeUpload.session.objectKey;
+        copy.shortKey = largeUpload.session.shortKey;
+        copy.filename = largeUpload.session.filename;
+        copy.size = largeUpload.session.size;
+        copy.contentType = largeUpload.session.contentType;
+        copy.title = largeUpload.session.title;
+        copy.partSize = largeUpload.session.partSize;
+        copy.totalParts = largeUpload.session.totalParts;
+        copy.parts = [];
+        largeUpload.uploadedParts.forEach(function (etag, partNumber) {
+          copy.parts.push({ partNumber: partNumber, etag: etag });
+        });
+        localStorage.setItem(LARGE_STORAGE_KEY, JSON.stringify(copy));
+      } catch (e) {}
+    }
+
+    function clearLargeSession() {
+      try { localStorage.removeItem(LARGE_STORAGE_KEY); } catch (e) {}
+    }
+
+    function showLargeProgress() {
+      const box = document.getElementById('largeProgress');
+      if (box) box.classList.add('show');
+      const pauseBtn = document.getElementById('largePauseBtn');
+      if (pauseBtn) { pauseBtn.disabled = false; pauseBtn.textContent = '暂停'; }
+      const cancelBtn = document.getElementById('largeCancelBtn');
+      if (cancelBtn) cancelBtn.disabled = false;
+    }
+
+    function hideLargeProgress() {
+      const box = document.getElementById('largeProgress');
+      if (box) box.classList.remove('show');
+    }
+
+    function updateLargeProgress() {
+      if (!largeUpload || !largeUpload.session) return;
+      const total = largeUpload.session.size || 0;
+      const partSize = largeUpload.session.partSize || LARGE_PART_SIZE;
+      let doneBytes = 0;
+      largeUpload.uploadedParts.forEach(function (_etag, partNumber) {
+        const start = (partNumber - 1) * partSize;
+        const end = Math.min(partNumber * partSize, total);
+        doneBytes += Math.max(0, end - start);
+      });
+      const inFlight = largeUpload.inFlightBytes || 0;
+      const shown = Math.min(total, doneBytes + inFlight);
+      const pct = total ? Math.floor(shown / total * 100) : 0;
+      const fill = document.getElementById('largeProgressFill');
+      if (fill) fill.style.width = pct + '%';
+      const text = document.getElementById('largeProgressText');
+      if (text) text.textContent = '已传 ' + formatBytes(shown) + ' / ' + formatBytes(total) + '（' + pct + '%，' + largeUpload.uploadedParts.size + ' / ' + largeUpload.session.totalParts + ' 片）';
+    }
+
+    function largeApi(path, body) {
+      return fetch(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (d) {
+          if (!res.ok) throw new Error(d.error || ('请求失败（' + res.status + '）'));
+          return d;
+        });
+      });
+    }
+
+    function putPartWithXhr(url, blob, partNumber) {
+      return new Promise(function (resolve, reject) {
+        const xhr = new XMLHttpRequest();
+        largeXhrs.push(xhr);
+        xhr.open('PUT', url, true);
+        xhr.onload = function () {
+          const idx = largeXhrs.indexOf(xhr);
+          if (idx >= 0) largeXhrs.splice(idx, 1);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const etag = xhr.getResponseHeader('ETag') || xhr.getResponseHeader('etag') || '';
+            if (!etag) { reject(new Error('分片 ' + partNumber + ' 上传成功但没拿到 ETag，请检查桶 CORS 的 ExposeHeaders 是否含 ETag')); return; }
+            resolve(etag);
+          } else {
+            reject(new Error('分片 ' + partNumber + ' 上传失败（HTTP ' + xhr.status + '）'));
+          }
+        };
+        xhr.onerror = function () {
+          const idx = largeXhrs.indexOf(xhr);
+          if (idx >= 0) largeXhrs.splice(idx, 1);
+          reject(new Error('分片 ' + partNumber + ' 网络错误，请检查网络或 CORS'));
+        };
+        xhr.onabort = function () {
+          const idx = largeXhrs.indexOf(xhr);
+          if (idx >= 0) largeXhrs.splice(idx, 1);
+          reject(new Error('aborted'));
+        };
+        xhr.upload.onprogress = function (ev) {
+          if (!largeUpload || !ev.lengthComputable) return;
+          largeUpload.inFlightProgress[partNumber] = ev.loaded || 0;
+          let sum = 0;
+          for (const k in largeUpload.inFlightProgress) sum += largeUpload.inFlightProgress[k] || 0;
+          largeUpload.inFlightBytes = sum;
+          updateLargeProgress();
+        };
+        xhr.send(blob);
+      });
+    }
+
+    function abortLargeXhrs() {
+      const list = largeXhrs.slice();
+      largeXhrs = [];
+      list.forEach(function (xhr) { try { xhr.abort(); } catch (e) {} });
+    }
+
+    async function uploadLargeFile(file, title, customKey) {
+      const btn = document.getElementById('btn');
+      largeXhrs = [];
+      largeUpload = {
+        session: null,
+        uploadedParts: new Map(),
+        inFlightProgress: {},
+        inFlightBytes: 0,
+        paused: false,
+        cancelled: false
+      };
+      showLargeProgress();
+      setStatus('info', '大文件走预签名分片直传，请勿关闭页面…');
+      try {
+        const resumed = loadLargeSession(file);
+        if (resumed) {
+          largeUpload.session = resumed;
+          resumed.parts.forEach(function (part) {
+            if (part && part.partNumber && part.etag) largeUpload.uploadedParts.set(Number(part.partNumber), part.etag);
+          });
+          setStatus('info', '已恢复未完成的上传（' + largeUpload.uploadedParts.size + ' / ' + resumed.totalParts + ' 片），继续上传…');
+        } else {
+          const init = await largeApi('/api/upload/initiate', {
+            filename: file.name || 'download',
+            size: file.size,
+            contentType: file.type || 'application/octet-stream',
+            title: title || '',
+            key: customKey || ''
+          });
+          largeUpload.session = {
+            fingerprint: largeFingerprint(file),
+            uploadId: init.uploadId,
+            objectKey: init.objectKey,
+            shortKey: init.shortKey,
+            filename: file.name || 'download',
+            size: file.size,
+            contentType: file.type || 'application/octet-stream',
+            title: title || '',
+            partSize: init.partSize || LARGE_PART_SIZE,
+            totalParts: init.totalParts
+          };
+          saveLargeSession();
+        }
+        const session = largeUpload.session;
+        const partSize = session.partSize || LARGE_PART_SIZE;
+        const totalParts = session.totalParts;
+        updateLargeProgress();
+        const queue = [];
+        for (let n = 1; n <= totalParts; n++) {
+          if (!largeUpload.uploadedParts.has(n)) queue.push(n);
+        }
+        let nextIndex = 0;
+        let failed = null;
+        async function worker() {
+          while (nextIndex < queue.length) {
+            if (!largeUpload || largeUpload.paused || largeUpload.cancelled) return;
+            const partNumber = queue[nextIndex++];
+            const start = (partNumber - 1) * partSize;
+            const end = Math.min(partNumber * partSize, file.size);
+            const blob = file.slice(start, end);
+            let lastErr = null;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              if (!largeUpload || largeUpload.paused || largeUpload.cancelled) return;
+              try {
+                const partUrl = await largeApi('/api/upload/part-url', {
+                  uploadId: session.uploadId,
+                  objectKey: session.objectKey,
+                  partNumber: partNumber
+                });
+                const etag = await putPartWithXhr(partUrl.url, blob, partNumber);
+                largeUpload.uploadedParts.set(partNumber, etag);
+                delete largeUpload.inFlightProgress[partNumber];
+                let sum = 0;
+                for (const k in largeUpload.inFlightProgress) sum += largeUpload.inFlightProgress[k] || 0;
+                largeUpload.inFlightBytes = sum;
+                saveLargeSession();
+                updateLargeProgress();
+                lastErr = null;
+                break;
+              } catch (e) {
+                lastErr = e;
+                if (e && e.message === 'aborted') return;
+                if (attempt < 3) await new Promise(function (r) { setTimeout(r, 1000 * attempt); });
+              }
+            }
+            if (lastErr) { failed = lastErr; return; }
+          }
+        }
+        const workers = [];
+        for (let i = 0; i < Math.min(LARGE_CONCURRENCY, queue.length); i++) workers.push(worker());
+        await Promise.all(workers);
+        if (!largeUpload || largeUpload.cancelled) return null;
+        if (largeUpload.paused) {
+          saveLargeSession();
+          setStatus('info', '已暂停（' + largeUpload.uploadedParts.size + ' / ' + totalParts + ' 片），刷新后重新选同一文件可续传。');
+          return null;
+        }
+        if (failed) throw failed;
+        if (largeUpload.uploadedParts.size !== totalParts) throw new Error('分片不完整：已传 ' + largeUpload.uploadedParts.size + ' / ' + totalParts + ' 片');
+        setStatus('info', '分片已传完，正在合并…');
+        const parts = [];
+        largeUpload.uploadedParts.forEach(function (etag, partNumber) {
+          parts.push({ partNumber: partNumber, etag: etag });
+        });
+        parts.sort(function (a, b) { return a.partNumber - b.partNumber; });
+        const done = await largeApi('/api/upload/complete', {
+          uploadId: session.uploadId,
+          objectKey: session.objectKey,
+          shortKey: session.shortKey,
+          filename: session.filename,
+          contentType: session.contentType,
+          size: session.size,
+          title: session.title,
+          parts: parts
+        });
+        clearLargeSession();
+        largeUpload = null;
+        hideLargeProgress();
+        return done;
+      } catch (e) {
+        if (e && e.message === 'aborted') return null;
+        if (largeUpload && largeUpload.cancelled) return null;
+        if (largeUpload && largeUpload.paused) return null;
+        hideLargeProgress();
+        throw e;
+      }
+    }
+
     async function s() {
       const u = document.getElementById('u').value.trim();
       const t = document.getElementById('t').value.trim();
@@ -1077,8 +1371,28 @@ export const htmlIndex = `<!DOCTYPE html>
         return;
       }
 
+      if (mode === 'file' && file && file.size > MAX_LARGE_FILE_SIZE) {
+        setStatus('error', '文件 ' + formatBytes(file.size) + '，超过 5 GB 上限，传不上去。请压缩或分卷后再传。');
+        return;
+      }
+
+      // >100 MB：走预签名分片直传，不走上面那条 100 MB 直传路。
       if (mode === 'file' && file && file.size > MAX_FILE_SIZE) {
-        setStatus('error', '文件 ' + formatBytes(file.size) + '，超过 100 MB 上限，传不上去。请压缩或分卷后再传。');
+        if (btn) btn.disabled = true;
+        if (btn) btn.textContent = '上传中…';
+        try {
+          const done = await uploadLargeFile(file, ft, k);
+          if (done && done.key) {
+            const full = window.location.origin + done.key;
+            showResult(full, '文件链接已生成，现在可以复制或直接打开。');
+            setStatus('success', '上传完成，链接已生成。');
+          }
+        } catch (e) {
+          setStatus('error', (e && e.message) || '大文件上传失败，请稍后重试。已传的分片已保存，重新选同一文件可续传。');
+        } finally {
+          if (btn) btn.disabled = false;
+          if (btn) btn.textContent = '上传并生成链接';
+        }
         return;
       }
 
@@ -1152,6 +1466,28 @@ export const htmlIndex = `<!DOCTYPE html>
     setMode('url');
     const fileInput = document.getElementById('f');
     if (fileInput) fileInput.addEventListener('change', updateFileState);
+    const largePauseBtn = document.getElementById('largePauseBtn');
+    if (largePauseBtn) largePauseBtn.addEventListener('click', function () {
+      if (!largeUpload) return;
+      largeUpload.paused = true;
+      abortLargeXhrs();
+      largePauseBtn.textContent = '已暂停';
+      largePauseBtn.disabled = true;
+    });
+    const largeCancelBtn = document.getElementById('largeCancelBtn');
+    if (largeCancelBtn) largeCancelBtn.addEventListener('click', function () {
+      if (!largeUpload || !largeUpload.session) return;
+      largeUpload.cancelled = true;
+      abortLargeXhrs();
+      const session = largeUpload.session;
+      largeApi('/api/upload/abort', { uploadId: session.uploadId, objectKey: session.objectKey }).catch(function () {});
+      clearLargeSession();
+      largeUpload = null;
+      hideLargeProgress();
+      setStatus('info', '已取消上传，分片上传已清理。');
+      const btn = document.getElementById('btn');
+      if (btn) { btn.disabled = false; btn.textContent = '上传并生成链接'; }
+    });
   </script>
 </body>
 </html>`;

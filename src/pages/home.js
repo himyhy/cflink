@@ -623,6 +623,12 @@ export const htmlIndex = `<!DOCTYPE html>
       border-color: rgba(22,163,74,0.18);
     }
 
+    .status.info {
+      background: rgba(37,99,235,0.10);
+      color: var(--primary);
+      border-color: rgba(37,99,235,0.18);
+    }
+
     .result {
       display: none;
       margin-top: 8px;
@@ -850,7 +856,7 @@ export const htmlIndex = `<!DOCTYPE html>
                   <div class="file-ui">
                     <div class="file-copy">
                       <strong id="fileLabel">选择一个文件</strong>
-                      <span id="fileHint">上传到 R2 后生成可访问链接；图片、PDF、文本、音视频更适合在线预览。</span>
+                      <span id="fileHint">上传到 R2 后生成可访问链接；图片、PDF、文本、音视频更适合在线预览。单文件上限 100 MB。</span>
                     </div>
                     <div class="file-pill">选择文件</div>
                   </div>
@@ -920,6 +926,10 @@ export const htmlIndex = `<!DOCTYPE html>
   <script>
     let mode = 'url';
     let lastLink = '';
+    // 文件上传上限：和后端 src/index.js 的 MAX_FILE_SIZE 保持一致。
+    // Cloudflare Free/Pro 单次请求体硬上限 100 MB，超过会在边缘直接 413；
+    // 旧代码全量进内存，实际 20-50 MB 就可能卡死，所以这里先在前端拦住并明说。
+    const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
     function formatBytes(size) {
       const value = Number(size) || 0;
@@ -946,7 +956,7 @@ export const htmlIndex = `<!DOCTYPE html>
         box.textContent = '';
         return;
       }
-      box.className = 'status show ' + (type === 'success' ? 'success' : 'error');
+      box.className = 'status show ' + (type === 'success' ? 'success' : type === 'info' ? 'info' : 'error');
       box.textContent = message;
     }
 
@@ -980,7 +990,7 @@ export const htmlIndex = `<!DOCTYPE html>
       if (!file) {
         shell.classList.remove('is-active');
         label.textContent = '选择一个文件';
-        hint.textContent = '上传到 R2 后生成可访问链接；图片、PDF、文本、音视频更适合在线预览。';
+        hint.textContent = '上传到 R2 后生成可访问链接；图片、PDF、文本、音视频更适合在线预览。单文件上限 100 MB。';
         meta.style.display = 'none';
         meta.textContent = '';
         return;
@@ -988,9 +998,13 @@ export const htmlIndex = `<!DOCTYPE html>
 
       shell.classList.add('is-active');
       label.textContent = file.name || '已选择文件';
-      hint.textContent = '文件已就绪，生成后即可分享。';
+      if (file.size > MAX_FILE_SIZE) {
+        hint.textContent = '这个文件超过 100 MB 上限，传不上去，请压缩或分卷后再传。';
+      } else {
+        hint.textContent = '文件已就绪，生成后即可分享。';
+      }
       meta.style.display = 'block';
-      meta.innerHTML = '大小：' + escapeHtml(formatBytes(file.size || 0)) + '<br>类型：' + escapeHtml(file.type || 'application/octet-stream');
+      meta.innerHTML = '大小：' + escapeHtml(formatBytes(file.size || 0)) + '<br>类型：' + escapeHtml(file.type || 'application/octet-stream') + (file.size > MAX_FILE_SIZE ? '<br>已超过 100 MB 上限' : '');
     }
 
     function setMode(nextMode) {
@@ -1063,22 +1077,33 @@ export const htmlIndex = `<!DOCTYPE html>
         return;
       }
 
+      if (mode === 'file' && file && file.size > MAX_FILE_SIZE) {
+        setStatus('error', '文件 ' + formatBytes(file.size) + '，超过 100 MB 上限，传不上去。请压缩或分卷后再传。');
+        return;
+      }
+
       if (btn) btn.disabled = true;
+      if (btn) btn.textContent = mode === 'file' ? '上传中…' : btn.textContent;
+      if (mode === 'file') setStatus('info', '正在上传，请勿关闭页面…');
 
       try {
-        const body = mode === 'file'
-          ? (() => {
-              const form = new FormData();
-              form.set('type', mode);
-              form.set('title', ft);
-              form.set('key', k);
-              form.set('file', file);
-              return form;
-            })()
-          : JSON.stringify({ type: mode, url: u, text: t, title: tt, key: k });
+        // 文件直传：把 File 直接当 body 发，后端用 request.body 流式写 R2，
+        // 不走 multipart/form-data，避免 Worker 把整个文件读进 128 MB 内存再复制一份。
+        // 文件名/标题/自定义后缀放 header（encodeURIComponent，header 只能是 ASCII）。
+        const isFileUpload = mode === 'file';
+        const body = isFileUpload ? file : JSON.stringify({ type: mode, url: u, text: t, title: tt, key: k });
+        const headers = isFileUpload ? {
+          'x-cflink-upload': 'raw-file',
+          'x-file-name': encodeURIComponent(file.name || 'download'),
+          'x-file-type': file.type || 'application/octet-stream',
+          'x-file-title': encodeURIComponent(ft || ''),
+          'x-file-key': encodeURIComponent(k || ''),
+          'content-type': file.type || 'application/octet-stream'
+        } : { 'content-type': 'application/json' };
 
         const res = await fetch('/', {
           method: 'POST',
+          headers,
           body
         });
 
@@ -1101,9 +1126,10 @@ export const htmlIndex = `<!DOCTYPE html>
           setStatus('error', d.error || '生成失败，请稍后重试。');
         }
       } catch (e) {
-        setStatus('error', '请求失败，请稍后重试。');
+        setStatus('error', '请求失败，请稍后重试。文件越大越容易超时，超过 100 MB 请先压缩或分卷。');
       } finally {
         if (btn) btn.disabled = false;
+        if (btn) btn.textContent = mode === 'url' ? '生成短链' : mode === 'text' ? '生成文本页' : '上传并生成链接';
       }
     }
 

@@ -10,6 +10,15 @@ import hljs from "highlight.js";
 // ==================== 基础配置 ====================
 // 后台密码优先使用环境变量 ADMIN_PASS；若未配置则回退到默认占位值
 const DEFAULT_ADMIN_PASS = "change-this-password";
+// 文件上传上限：Cloudflare Free/Pro 单次请求体硬上限 100 MB，超过会在边缘直接返回 413，
+// Worker 根本收不到请求。Worker 内存只有 128 MB，所以这里也用 100 MB 做统一上限，
+// 再配合下面的流式写入，避免小文件也被内存拖垮。
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const MAX_FILE_SIZE_LABEL = "100 MB";
+
+function decodeHeaderValue(v) {
+  try { return decodeURIComponent(String(v || "")); } catch { return String(v || ""); }
+}
 const FAVICON_ICO_BASE64 = "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O/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/mFk7/5hZO/+YWTv/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
 function decodeBase64ToUint8Array(base64) {
@@ -465,8 +474,80 @@ async function handleRequest(request) {
 
   // 生成短链 / 文本页 / 文件分享（全部永久）
   if (request.method === "POST") {
+    // ---- 直传文件（新路径）：前端把 File 直接当 body 发，不走 multipart/form-data ----
+    // 旧路径先 request.formData() 再 file.arrayBuffer()，一份文件在 128 MB 内存里
+    // 存了两三份，20-50 MB 就可能爆内存（Error 1102），前端又没进度，看起来就是卡死。
+    // 直传用 request.body 流式写 R2，不全量进内存，实际可用上限提到 Cloudflare 硬上限 100 MB。
+    if (request.headers.get('x-cflink-upload') === 'raw-file') {
+      const rawName = decodeHeaderValue(request.headers.get('x-file-name') || 'download');
+      const rawTitle = decodeHeaderValue(request.headers.get('x-file-title') || '');
+      const rawKey = decodeHeaderValue(request.headers.get('x-file-key') || '').trim();
+      const rawType = request.headers.get('x-file-type') || request.headers.get('content-type') || 'application/octet-stream';
+      const rawLen = Number(request.headers.get('content-length') || '0');
+      if (rawLen && rawLen > MAX_FILE_SIZE) {
+        return new Response(JSON.stringify({ error: "文件超过 " + MAX_FILE_SIZE_LABEL + " 上限，请压缩或分卷后再上传" }), {
+          status: 413,
+          headers: jsonHeaders,
+        });
+      }
+      if (rawKey && isSuffixBlocked(rawKey, suffixBlacklist)) {
+        return new Response(JSON.stringify({ error: "该后缀已被占用" }), {
+          status: 409,
+          headers: jsonHeaders,
+        });
+      }
+      if (rawKey && (await LINKS.get(rawKey))) {
+        return new Response(JSON.stringify({ error: "该后缀已被占用" }), {
+          status: 409,
+          headers: jsonHeaders,
+        });
+      }
+      let rawShortKey = rawKey || Math.random().toString(36).substring(2, 8);
+      if (!rawKey && suffixBlacklist.size) {
+        let guard = 0;
+        while (isSuffixBlocked(rawShortKey, suffixBlacklist) && guard < 200) {
+          rawShortKey = Math.random().toString(36).substring(2, 8);
+          guard++;
+        }
+        if (isSuffixBlocked(rawShortKey, suffixBlacklist)) {
+          return new Response(JSON.stringify({ error: "生成失败，请稍后重试" }), {
+            status: 500,
+            headers: jsonHeaders,
+          });
+        }
+      }
+      const rawExt = rawName && rawName.includes('.') ? '.' + rawName.split('.').pop() : '';
+      const rawObjectKey = 'uploads/' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) + rawExt;
+      await FILES.put(rawObjectKey, request.body, {
+        httpMetadata: {
+          contentType: rawType,
+          contentDisposition: 'inline; filename="' + encodeURIComponent(rawName) + '"',
+        },
+      });
+      await LINKS.put(rawShortKey, encodeStoredValue({
+        type: 'file',
+        title: rawTitle,
+        objectKey: rawObjectKey,
+        filename: rawName,
+        contentType: rawType,
+        size: rawLen || 0,
+      }), { metadata: { createdAt: Date.now() } });
+      invalidateAdminListCache();
+      return new Response(JSON.stringify({ key: "/" + rawShortKey, type: 'file' }), {
+        headers: jsonHeaders,
+      });
+    }
+
     const contentType = request.headers.get('content-type') || '';
     const isMultipart = contentType.includes('multipart/form-data');
+    // 兼容旧前端的 multipart 路径：先看 Content-Length，超限直接 413，别等 formData() 把内存撑爆。
+    const contentLength = Number(request.headers.get('content-length') || '0');
+    if (isMultipart && contentLength && contentLength > MAX_FILE_SIZE) {
+      return new Response(JSON.stringify({ error: "文件超过 " + MAX_FILE_SIZE_LABEL + " 上限，请压缩或分卷后再上传" }), {
+        status: 413,
+        headers: jsonHeaders,
+      });
+    }
     const req = isMultipart ? null : await request.json();
     const form = isMultipart ? await request.formData() : null;
 
@@ -572,9 +653,17 @@ async function handleRequest(request) {
       invalidateAdminListCache();
     } else {
       const file = uploadFile;
+      if (file.size && file.size > MAX_FILE_SIZE) {
+        return new Response(JSON.stringify({ error: "文件超过 " + MAX_FILE_SIZE_LABEL + " 上限，请压缩或分卷后再上传" }), {
+          status: 413,
+          headers: jsonHeaders,
+        });
+      }
       const fileExt = file.name && file.name.includes('.') ? '.' + file.name.split('.').pop() : '';
       const objectKey = 'uploads/' + Date.now() + '-' + Math.random().toString(36).slice(2, 10) + fileExt;
-      await FILES.put(objectKey, await file.arrayBuffer(), {
+      // 别用 await file.arrayBuffer()：它会在 formData 已占一份内存的基础上再复制一份。
+      // 直接传 File（Blob）给 R2，运行时知道长度、可流式写入，少占一份内存。
+      await FILES.put(objectKey, file, {
         httpMetadata: {
           contentType: file.type || 'application/octet-stream',
           contentDisposition: 'inline; filename="' + encodeURIComponent(file.name || 'download') + '"',

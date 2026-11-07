@@ -954,6 +954,7 @@ export const htmlIndex = `<!DOCTYPE html>
     const LARGE_CONCURRENCY = 3;
     const LARGE_STORAGE_KEY = 'cflink-large-upload-v1';
     let largeUpload = null;
+    let directUpload = null; // ≤100 MB 直传的 XHR 进度状态（没有分片会话，只有单次请求）
     let largeXhrs = [];
 
     function formatBytes(size) {
@@ -1138,6 +1139,35 @@ export const htmlIndex = `<!DOCTYPE html>
       if (box) box.classList.remove('show');
     }
 
+    // ≤100 MB 直传的进度条：复用同一个 #largeProgress。直传没有暂停/续传，
+    // 所以暂停按钮禁用，只留取消（点取消会 abort 掉 XHR）。
+    function showDirectProgress(total) {
+      directUpload = { xhr: null, loaded: 0, total: total || 0 };
+      const fill = document.getElementById('largeProgressFill');
+      if (fill) fill.style.width = '0%';
+      const text = document.getElementById('largeProgressText');
+      if (text) text.textContent = '已传 0 / ' + formatBytes(total || 0) + '（0%）';
+      showLargeProgress();
+      const pauseBtn = document.getElementById('largePauseBtn');
+      if (pauseBtn) pauseBtn.disabled = true;
+    }
+
+    function updateDirectProgress(loaded) {
+      if (!directUpload) return;
+      directUpload.loaded = loaded;
+      const total = directUpload.total || 0;
+      const pct = total ? Math.floor(loaded / total * 100) : 0;
+      const fill = document.getElementById('largeProgressFill');
+      if (fill) fill.style.width = pct + '%';
+      const text = document.getElementById('largeProgressText');
+      if (text) text.textContent = '已传 ' + formatBytes(loaded) + ' / ' + formatBytes(total) + '（' + pct + '%）';
+    }
+
+    function hideDirectProgress() {
+      directUpload = null;
+      hideLargeProgress();
+    }
+
     function updateLargeProgress() {
       if (!largeUpload || !largeUpload.session) return;
       const total = largeUpload.session.size || 0;
@@ -1205,6 +1235,30 @@ export const htmlIndex = `<!DOCTYPE html>
           updateLargeProgress();
         };
         xhr.send(blob);
+      });
+    }
+
+    // ≤100 MB 直传也用 XHR，以便拿到真实上传进度（fetch 没有上传进度事件）。
+    // 成功返回 { ok, status, data }；取消时抛 message 为 'aborted' 的错误。
+    function uploadDirectFileWithXhr(file, headers) {
+      return new Promise(function (resolve, reject) {
+        const xhr = new XMLHttpRequest();
+        if (directUpload) directUpload.xhr = xhr;
+        xhr.open('POST', '/', true);
+        Object.keys(headers || {}).forEach(function (name) { xhr.setRequestHeader(name, headers[name]); });
+        xhr.onload = function () {
+          if (directUpload) updateDirectProgress(directUpload.total);
+          let data = {};
+          try { data = JSON.parse(xhr.responseText || '{}'); } catch (e) {}
+          resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data: data });
+        };
+        xhr.onerror = function () { reject(new Error('网络错误，请检查网络后重试')); };
+        xhr.onabort = function () { reject(new Error('aborted')); };
+        xhr.upload.onprogress = function (ev) {
+          if (!ev.lengthComputable) return;
+          updateDirectProgress(ev.loaded || 0);
+        };
+        xhr.send(file);
       });
     }
 
@@ -1405,7 +1459,6 @@ export const htmlIndex = `<!DOCTYPE html>
         // 不走 multipart/form-data，避免 Worker 把整个文件读进 128 MB 内存再复制一份。
         // 文件名/标题/自定义后缀放 header（encodeURIComponent，header 只能是 ASCII）。
         const isFileUpload = mode === 'file';
-        const body = isFileUpload ? file : JSON.stringify({ type: mode, url: u, text: t, title: tt, key: k });
         const headers = isFileUpload ? {
           'x-cflink-upload': 'raw-file',
           'x-file-name': encodeURIComponent(file.name || 'download'),
@@ -1415,13 +1468,28 @@ export const htmlIndex = `<!DOCTYPE html>
           'content-type': file.type || 'application/octet-stream'
         } : { 'content-type': 'application/json' };
 
-        const res = await fetch('/', {
-          method: 'POST',
-          headers,
-          body
-        });
-
-        const d = await res.json().catch(() => ({}));
+        let res;
+        let d;
+        if (isFileUpload) {
+          // 直传改走 XHR，复用同一个进度条显示真实上传进度；短链/文本还是 fetch。
+          showDirectProgress(file.size);
+          try {
+            const r = await uploadDirectFileWithXhr(file, headers);
+            res = { ok: r.ok, status: r.status };
+            d = r.data || {};
+          } finally {
+            hideDirectProgress();
+          }
+        } else {
+          const body = JSON.stringify({ type: mode, url: u, text: t, title: tt, key: k });
+          const resp = await fetch('/', {
+            method: 'POST',
+            headers,
+            body
+          });
+          res = resp;
+          d = await resp.json().catch(() => ({}));
+        }
 
         if (!res.ok) {
           setStatus('error', d.error || '请求失败，请稍后重试。');
@@ -1440,6 +1508,7 @@ export const htmlIndex = `<!DOCTYPE html>
           setStatus('error', d.error || '生成失败，请稍后重试。');
         }
       } catch (e) {
+        if (e && e.message === 'aborted') { setStatus('info', '已取消上传。'); return; }
         setStatus('error', '请求失败，请稍后重试。文件越大越容易超时，超过 100 MB 请先压缩或分卷。');
       } finally {
         if (btn) btn.disabled = false;
@@ -1476,6 +1545,10 @@ export const htmlIndex = `<!DOCTYPE html>
     });
     const largeCancelBtn = document.getElementById('largeCancelBtn');
     if (largeCancelBtn) largeCancelBtn.addEventListener('click', function () {
+      if (directUpload && directUpload.xhr) {
+        try { directUpload.xhr.abort(); } catch (e) {}
+        return;
+      }
       if (!largeUpload || !largeUpload.session) return;
       largeUpload.cancelled = true;
       abortLargeXhrs();

@@ -35,6 +35,33 @@ function encodeR2Key(key) {
   return String(key || "").split("/").map((seg) => encodeURIComponent(seg)).join("/");
 }
 
+// 解析单段 HTTP Range 请求头，返回 { start, end, total }；无 Range 或格式不支持时返回 null（按整段返回）。
+// 音视频拖进度条时浏览器发 Range: bytes=N-M，服务端必须回 206 + Content-Range 才能跳转；
+// 之前这里直接忽略 Range、永远 200 整段返回，所以拖进度条没反应。
+// 越界（start >= total 或 end < start）时返回 { unsatisfiable: true, total }，调用方回 416。
+function parseRangeHeader(header, total) {
+  if (typeof header !== 'string' || !Number.isFinite(total) || total <= 0) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m) return null;
+  let start, end;
+  if (m[1] === '' && m[2] !== '') {
+    // 后缀范围 bytes=-N：取最后 N 字节
+    const suffix = Number(m[2]);
+    if (!Number.isFinite(suffix) || suffix <= 0) return null;
+    start = Math.max(0, total - suffix);
+    end = total - 1;
+  } else if (m[1] !== '') {
+    start = Number(m[1]);
+    end = m[2] !== '' ? Number(m[2]) : total - 1;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  } else {
+    return null;
+  }
+  if (start < 0 || start >= total || end < start) return { unsatisfiable: true, total };
+  end = Math.min(end, total - 1);
+  return { start, end, total };
+}
+
 function normalizeEtag(etag) {
   let v = String(etag || "").trim();
   if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1);
@@ -904,7 +931,16 @@ async function handleRequest(request) {
     const raw = await LINKS.get(shareKey);
     const parsed = parseStoredValue(raw);
     if (parsed?.type === 'file' && parsed.objectKey) {
-      const obj = await FILES.get(parsed.objectKey);
+      // 先拿元数据得到总大小，才能解析 Range；R2 的 get(range) 需要 offset/length。
+      const head = await FILES.head(parsed.objectKey);
+      const total = head?.size ?? 0;
+      const range = parseRangeHeader(request.headers.get('range'), total);
+      if (range?.unsatisfiable) {
+        return new Response(null, { status: 416, headers: { 'content-range': 'bytes */' + total, 'accept-ranges': 'bytes' } });
+      }
+      const obj = range
+        ? await FILES.get(parsed.objectKey, { range: { offset: range.start, length: range.end - range.start + 1 } })
+        : await FILES.get(parsed.objectKey);
       if (!obj) {
         return new Response(renderErrorPage({
           status: 404,
@@ -922,6 +958,12 @@ async function handleRequest(request) {
       headers.set('cache-control', 'public, max-age=3600');
       headers.set('content-type', parsed.contentType || obj.httpMetadata?.contentType || 'application/octet-stream');
       headers.set('content-disposition', (action === 'download' ? 'attachment' : 'inline') + '; filename*=UTF-8\'\'' + encodeURIComponent(parsed.filename || 'download'));
+      headers.set('accept-ranges', 'bytes');
+      if (range) {
+        headers.set('content-range', 'bytes ' + range.start + '-' + range.end + '/' + range.total);
+        headers.set('content-length', String(range.end - range.start + 1));
+        return new Response(obj.body, { status: 206, headers });
+      }
       return new Response(obj.body, { headers });
     }
   }
